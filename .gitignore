@@ -1,0 +1,27 @@
+# Secrets e configurações locais
+.install-answers.env
+.env
+*.env
+!.env.example
+!models.env.example
+secrets/
+
+# Logs
+logs/
+*.log
+
+# Knowledge base clonada localmente
+knowledge-base/
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+
+# Reports gerados
+reports/*.html
