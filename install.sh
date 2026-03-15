@@ -3,10 +3,10 @@
 # SC2154: Variables assigned dynamically via printf -v in prompt_choice/prompt_with_default
 # =============================================================================
 # install.sh — Instalador Interativo do Agente Autônomo Claude
-# Repositório template: https://github.com/OWNER/REPO_PLACEHOLDER
+# Repositório template: https://github.com/alexlopespereira/agent-template
 # =============================================================================
 # USO:
-#   curl -fsSL https://raw.githubusercontent.com/OWNER/REPO_PLACEHOLDER/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/alexlopespereira/agent-template/main/install.sh | bash
 #   ou: git clone ... && cd repo && bash install.sh
 # =============================================================================
 
@@ -17,7 +17,7 @@ set -euo pipefail
 # SEÇÃO 1 — CONSTANTES E HELPERS
 # ─────────────────────────────────────────────────────────────────────────────
 
-TEMPLATE_REPO="OWNER/REPO_PLACEHOLDER"
+TEMPLATE_REPO="alexlopespereira/agent-template"
 INSTALL_DIR=""
 ANSWERS_FILE=""
 LOG=""

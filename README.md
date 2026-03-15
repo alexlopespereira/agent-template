@@ -6,13 +6,13 @@ Template for creating autonomous AI agents based on Claude Code CLI.
 
 ```bash
 # Clone and run installer
-git clone https://github.com/YOUR_USER/agent-template.git my-agent
+git clone https://github.com/alexlopespereira/agent-template.git my-agent
 cd my-agent && bash install.sh
 ```
 
 Or use as a GitHub template:
 ```bash
-gh repo create my-agent --template YOUR_USER/agent-template --private
+gh repo create my-agent --template alexlopespereira/agent-template --private
 cd my-agent && bash install.sh
 ```
 
