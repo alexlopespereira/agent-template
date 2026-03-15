@@ -622,6 +622,215 @@ setup_knowledge_base() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# SEÇÃO 6b — SETUP DE CREDENCIAIS (SECRETS)
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Arquitetura de duas camadas:
+#   secrets/_shared.yaml          → LLMs, busca, infra (todos os experimentos)
+#   experiments/<slug>/secrets.yaml → credenciais específicas do negócio
+#
+# O secrets_setup.sh orquestra a criação dos arquivos.
+# Esta função coleta as credenciais interativamente e as injeta.
+# ─────────────────────────────────────────────────────────────────────────────
+
+setup_secrets() {
+  header "Configurando Credenciais"
+
+  # Verificar que secrets_setup.sh existe
+  local setup_script="$INSTALL_DIR/secrets/secrets_setup.sh"
+  if [[ ! -f "$setup_script" ]]; then
+    warn "secrets_setup.sh não encontrado em $INSTALL_DIR/secrets/"
+    warn "Pulando setup de credenciais. Configure manualmente depois:"
+    warn "  bash secrets/secrets_setup.sh"
+    return 0
+  fi
+
+  # Inicializar estrutura (cria secrets/_shared.yaml, .gitignore, logs/)
+  info "Inicializando estrutura de secrets..."
+  bash "$setup_script" setup 2>/dev/null || true
+
+  # ── Grupo A: Credenciais de LLM ────────────────────────────────────────────
+  header "Credenciais — LLMs"
+  echo -e "  ${YELLOW}ANTHROPIC_API_KEY já configurada (coletada anteriormente).${RESET}"
+  echo -e "  As demais são opcionais — deixe vazio para pular.\n"
+
+  export ANTHROPIC_API_KEY
+
+  echo ""
+  ask "OPENAI_API_KEY (sk-... — deixe vazio para pular):"
+  read -r -s -p "    › " OPENAI_API_KEY; echo ""
+  export OPENAI_API_KEY
+
+  echo ""
+  ask "XAI_API_KEY (xai-... — Grok, para adversarial review — deixe vazio para pular):"
+  read -r -s -p "    › " XAI_API_KEY; echo ""
+  export XAI_API_KEY
+
+  echo ""
+  ask "GOOGLE_API_KEY (AIza... — Gemini — deixe vazio para pular):"
+  read -r -s -p "    › " GOOGLE_API_KEY; echo ""
+  export GOOGLE_API_KEY
+
+  # ── Grupo B: Busca ──────────────────────────────────────────────────────────
+  header "Credenciais — Busca"
+
+  if [[ -z "${EXA_API_KEY:-}" ]]; then
+    ask "EXA_API_KEY (exa-... — deixe vazio para pular):"
+    read -r -s -p "    › " EXA_API_KEY; echo ""
+  else
+    echo -e "  ${YELLOW}EXA_API_KEY já configurada (coletada anteriormente).${RESET}"
+  fi
+  export EXA_API_KEY
+
+  echo ""
+  ask "SERPER_API_KEY (serper.dev — deixe vazio para pular):"
+  read -r -s -p "    › " SERPER_API_KEY; echo ""
+  export SERPER_API_KEY
+
+  # ── Grupo C: Infraestrutura ─────────────────────────────────────────────────
+  header "Credenciais — Infraestrutura"
+
+  echo -e "  O agente pode precisar de um GitHub PAT para criar PRs, issues e push autônomo."
+  echo ""
+  ask "GITHUB_PAT (github_pat_... ou ghp_... — deixe vazio para pular):"
+  read -r -s -p "    › " GITHUB_PAT; echo ""
+  export GITHUB_PAT
+
+  echo ""
+  ask "CLOUDFLARE_API_TOKEN (deixe vazio para pular):"
+  read -r -s -p "    › " CLOUDFLARE_API_TOKEN; echo ""
+  ask "CLOUDFLARE_ACCOUNT_ID (deixe vazio para pular):"
+  read -r -p "    › " CLOUDFLARE_ACCOUNT_ID
+  export CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID
+
+  # ── Grupo D: Comunicação ────────────────────────────────────────────────────
+  header "Credenciais — Comunicação (Alertas do Agente)"
+  echo -e "  Configure para receber notificações do agente no Telegram ou Slack.\n"
+
+  ask "TELEGRAM_BOT_TOKEN (deixe vazio para pular):"
+  read -r -s -p "    › " TELEGRAM_BOT_TOKEN; echo ""
+
+  TELEGRAM_CHAT_ID=""
+  if [[ -n "$TELEGRAM_BOT_TOKEN" ]]; then
+    ask "TELEGRAM_CHAT_ID (ID do chat para receber alertas):"
+    read -r -p "    › " TELEGRAM_CHAT_ID
+  fi
+  export TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID
+
+  echo ""
+  ask "SLACK_WEBHOOK_URL (https://hooks.slack.com/... — deixe vazio para pular):"
+  read -r -p "    › " SLACK_WEBHOOK_URL
+  export SLACK_WEBHOOK_URL
+
+  # ── Injetar no _shared.yaml ─────────────────────────────────────────────────
+  header "Injetando credenciais em secrets/_shared.yaml"
+
+  local shared_file="$INSTALL_DIR/secrets/_shared.yaml"
+  if [[ ! -f "$shared_file" ]]; then
+    warn "_shared.yaml não encontrado após setup"
+    warn "Credenciais salvas apenas nas variáveis de ambiente."
+    return 0
+  fi
+
+  python3 - << 'PYEOF'
+import yaml, os, sys
+from pathlib import Path
+from datetime import datetime, timezone
+
+path = Path(os.environ.get('INSTALL_DIR', '.')) / 'secrets' / '_shared.yaml'
+if not path.exists():
+    print("  ⚠ _shared.yaml não encontrado")
+    sys.exit(0)
+
+with open(path) as f:
+    data = yaml.safe_load(f) or {}
+
+def set_if(d, keys, value):
+    if not value:
+        return
+    obj = d
+    for k in keys[:-1]:
+        obj = obj.setdefault(k, {})
+    obj[keys[-1]] = value
+
+env = os.environ
+set_if(data, ['llm', 'anthropic',  'api_key'],          env.get('ANTHROPIC_API_KEY', ''))
+set_if(data, ['llm', 'openai',     'api_key'],          env.get('OPENAI_API_KEY', ''))
+set_if(data, ['llm', 'xai',        'api_key'],          env.get('XAI_API_KEY', ''))
+set_if(data, ['llm', 'google',     'api_key'],          env.get('GOOGLE_API_KEY', ''))
+set_if(data, ['search', 'exa',     'api_key'],          env.get('EXA_API_KEY', ''))
+set_if(data, ['search', 'serper',  'api_key'],          env.get('SERPER_API_KEY', ''))
+set_if(data, ['infra', 'github',   'personal_access_token'], env.get('GITHUB_PAT', ''))
+set_if(data, ['infra', 'github',   'username'],         env.get('GITHUB_USER', ''))
+set_if(data, ['infra', 'cloudflare', 'api_token'],      env.get('CLOUDFLARE_API_TOKEN', ''))
+set_if(data, ['infra', 'cloudflare', 'account_id'],     env.get('CLOUDFLARE_ACCOUNT_ID', ''))
+set_if(data, ['communication', 'telegram', 'bot_token'],env.get('TELEGRAM_BOT_TOKEN', ''))
+set_if(data, ['communication', 'telegram', 'chat_id'],  env.get('TELEGRAM_CHAT_ID', ''))
+set_if(data, ['communication', 'slack', 'webhook_url'], env.get('SLACK_WEBHOOK_URL', ''))
+
+data.setdefault('_meta', {})
+data['_meta']['last_updated'] = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+data['_meta']['owner'] = env.get('GITHUB_USER', env.get('REPO_OWNER', ''))
+
+with open(path, 'w') as f:
+    yaml.dump(data, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
+
+print("  ✓ _shared.yaml atualizado com as credenciais fornecidas")
+PYEOF
+
+  chmod 600 "$shared_file"
+  success "secrets/_shared.yaml configurado (600)"
+
+  # ── Experimento inicial (opcional) ──────────────────────────────────────────
+  header "Criar Primeiro Experimento? (opcional)"
+  echo -e "  Experimentos são projetos de negócio individuais com suas próprias"
+  echo -e "  credenciais (Meta Ads, Stripe, Supabase, etc.).\n"
+  echo -e "  Você pode criar depois com:  bash secrets/secrets_setup.sh new meu_negocio\n"
+
+  prompt_choice create_exp \
+    "Deseja criar um experimento agora?" \
+    "Sim — criar experimento inicial" \
+    "Não — configurar depois"
+
+  if [[ "$create_exp" == *"Sim"* ]]; then
+    echo ""
+    ask "Slug do experimento (snake_case, ex: negocia_ai, recruta_ai):"
+    read -r -p "    › " EXP_SLUG
+
+    if ! echo "$EXP_SLUG" | grep -qE '^[a-z][a-z0-9_]*$'; then
+      warn "Slug inválido. Use snake_case minúsculo. Experimento não criado."
+      warn "Crie depois com: bash secrets/secrets_setup.sh new <slug>"
+    else
+      bash "$setup_script" new "$EXP_SLUG"
+
+      local biz_file="$INSTALL_DIR/experiments/$EXP_SLUG/business.md"
+      echo ""
+      prompt_choice edit_biz \
+        "Abrir business.md para descrever o negócio agora?" \
+        "Sim — abrir editor" \
+        "Não — preencher depois"
+
+      [[ "$edit_biz" == *"Sim"* ]] && ${EDITOR:-nano} "$biz_file"
+
+      success "Experimento '$EXP_SLUG' criado em experiments/$EXP_SLUG/"
+      info "Preencha as credenciais específicas depois:"
+      info "  nano experiments/$EXP_SLUG/secrets.yaml"
+    fi
+  fi
+
+  # ── Verificação final ───────────────────────────────────────────────────────
+  echo ""
+  info "Verificando secrets..."
+  if command -v python3 &>/dev/null && [[ -f "$INSTALL_DIR/secrets/secrets_loader.py" ]]; then
+    python3 "$INSTALL_DIR/secrets/secrets_loader.py" status 2>/dev/null || true
+  else
+    bash "$setup_script" status 2>/dev/null || true
+  fi
+
+  success "Setup de secrets concluído"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # SEÇÃO 7 — ATIVAR HEARTBEAT
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -708,23 +917,31 @@ publish_to_github() {
 
   # Garantir .gitignore seguro
   cat > "$INSTALL_DIR/.gitignore" << 'GIEOF'
-# Secrets e configurações locais
+# Secrets e configurações locais — NUNCA commitar
 .install-answers.env
 .env
 *.env
 !.env.example
 !models.env.example
-secrets/
+
+# Sistema de secrets
+secrets/_shared.yaml
+experiments/*/secrets.yaml
+!secrets/_shared.template.yaml
+!secrets/secrets.template.yaml
 
 # Logs
 logs/
 *.log
+!logs/.gitkeep
 
 # Knowledge base clonada localmente
 knowledge-base/
 
-# macOS
+# macOS / IDEs
 .DS_Store
+.idea/
+.vscode/
 
 # Python
 __pycache__/
@@ -872,6 +1089,7 @@ print_summary() {
   echo -e "  ${BOLD}Repositório:${RESET}   https://github.com/$REPO_OWNER/$REPO_NAME"
   echo -e "  ${BOLD}Heartbeat:${RESET}     $HEARTBEAT_INTERVAL ($HEARTBEAT_SECONDS s)"
   echo -e "  ${BOLD}KB:${RESET}            $KB_PATH ($KB_TYPE, refresh: $KB_REFRESH)"
+  echo -e "  ${BOLD}Secrets:${RESET}       secrets/_shared.yaml ($(grep -cE ': .+[a-zA-Z0-9]' "$INSTALL_DIR/secrets/_shared.yaml" 2>/dev/null || echo 0) chaves configuradas)"
   echo -e "  ${BOLD}Diretório:${RESET}     $INSTALL_DIR"
   echo ""
   echo -e "  ${BOLD}Comandos úteis:${RESET}"
@@ -892,6 +1110,9 @@ print_summary() {
   echo "    bash $INSTALL_DIR/heartbeat.sh                 # heartbeat manual"
   echo "    cat $INSTALL_DIR/logs/heartbeat.log            # ver logs"
   echo "    cat $INSTALL_DIR/MEMORY.md                     # ver memória"
+  echo "    python3 $INSTALL_DIR/secrets/secrets_loader.py status  # ver credenciais"
+  echo "    bash $INSTALL_DIR/secrets/secrets_setup.sh new <slug>  # novo experimento"
+  echo "    bash $INSTALL_DIR/secrets/secrets_setup.sh status      # status secrets"
   echo ""
   success "Agente $AGENT_NAME instalado e configurado."
 }
@@ -910,6 +1131,7 @@ main() {
   collect_answers
   apply_templates
   setup_knowledge_base
+  setup_secrets
   activate_heartbeat
   publish_to_github
   validate_and_first_run
