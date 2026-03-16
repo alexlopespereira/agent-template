@@ -178,19 +178,22 @@ Para cada seção do `docs/business.template.md`, extraia informações dos arte
 
 | Seção do schema | O que extrair | Fontes típicas |
 |---|---|---|
-| 1. Identidade | nome, tagline, descrição, problema, público, diferencial | pitch, landing page, README |
-| 2. Mercado | setor, geografia, tamanho, concorrentes | pitch, business plan, pesquisas |
-| 3. Modelo de Negócio | tipo, preço, planos, trial, MRR alvo | pitch, projeções financeiras |
-| 4. Produto / MVP | funcionalidades, status | README, wireframes, docs técnicos |
+| 1. Identidade do Negócio | nome, tagline, categoria, estágio | pitch, landing page, README |
+| 2. Problema e Solução | problema, solução, por que agora | pitch, one-pager, proposta |
+| 3. Público-Alvo (ICP) | perfil, dor, onde está, como decide | pitch, copy de ads, pesquisas |
+| 4. Produto / Serviço | oferta, precificação (*), jornada | README, wireframes, docs |
 | 5. Canais de Aquisição (*) | quais canais marcados [x] | copy de ads, briefing marketing, pitch |
-| 6. Pagamentos (*) | processador, moeda, budget ads | planilhas financeiras, config |
-| 7. Stack Técnico (*) | hospedagem, backend, banco, auth, email, analytics | package.json, config, README |
-| 8. Equipe e Operação | fundadores, papel do agente | pitch, proposta |
-| 9. Cronograma | prazos, marcos | business plan, roadmap |
-| 10. Notas | contexto adicional, ambiguidades | tudo |
+| 6. Pagamentos (*) | processador, moeda, cobrança, marketplace | planilhas financeiras, config |
+| 7. Stack de Produto (*) | frontend, backend, banco, hospedagem, analytics, email | package.json, config, README |
+| 8. Métricas de Sucesso | MRR alvo, CAC, LTV, conversão, north star | projeções, business plan |
+| 9. Concorrentes | nomes, preços, diferenciais, nossa vantagem | pitch, pesquisas de mercado |
+| 10. Restrições e Compliance | regulação, LGPD, restrições de ads | docs legais, proposta |
+| 11. Contexto Operacional | time, budget, prazo, geografia, idioma | business plan, pitch |
+| 12. Comunicação e Voz da Marca | tom, identidade visual, remetente email | landing page, branding |
+| 13. Infraestrutura | deixar vazio — preenchido pelo Prompt D | — |
 
 Para cada trecho relevante encontrado, anote internamente:
-- Seção de destino (1-10)
+- Seção de destino (1-13)
 - Conteúdo extraído
 - Fonte (nome do arquivo)
 
@@ -234,9 +237,9 @@ Preenchi X de Y campos. Preciso de informação adicional para:
 
 ━━━ Campos opcionais (podem ser preenchidos depois) ━━━
 
-  - Concorrentes (seção 2): não encontrados
-  - Métricas de sucesso (seção 9): sem números definidos
-  - Equipe (seção 8): não mencionado
+  - Concorrentes (seção 9): não encontrados
+  - Métricas de sucesso (seção 8): sem números definidos
+  - Contexto operacional (seção 11): não mencionado
 
 Responda os campos essenciais — os opcionais podem ser atualizados a qualquer momento.
 ```

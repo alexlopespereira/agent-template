@@ -1,115 +1,159 @@
-# business.md — Schema Canônico do Experimento
+# business.md — Schema Canônico
+# ─────────────────────────────────────────────────────────────────
+# Template de referência para o arquivo business.md de cada experimento.
+# Commitado em: docs/business.template.md
+# Instância em: experiments/<slug>/business.md
 #
-# Este template define a estrutura do business.md para cada experimento.
-# Campos marcados com (*) são parseados automaticamente pelo Passo 2
-# (inferência de contas) do PROMPT_D_PREINSTALL.md.
-#
-# Setup:
-#   cp docs/business.template.md experiments/<slug>/business.md
-#   Preencher campos e remover comentários de instrução.
-#
-# Convenções:
-#   [x] = ativo/selecionado    [ ] = inativo/não selecionado
-#   [NÃO ENCONTRADO — preencher] = campo obrigatório ainda vazio
-#   [não definido — ajustar depois] = campo opcional ainda vazio
+# INSTRUÇÕES PARA PREENCHIMENTO:
+#   - Campos com (*) são usados pelo Prompt D para inferir contas necessárias
+#   - Preencha com o máximo de detalhe disponível
+#   - O agente lerá este arquivo em todo heartbeat para manter contexto
+# ─────────────────────────────────────────────────────────────────
 
 ---
+# METADADOS (parseados automaticamente — não remover)
+slug: ""                  # snake_case — preenchido pelo secrets_setup.sh
+name: ""                  # nome legível do negócio
+version: "1.0"
+created_at: ""
+last_updated: ""
+owner: ""
+---
 
-## 1. Identidade
+## 1. Identidade do Negócio
 
-- **Nome do negócio:** [NÃO ENCONTRADO — preencher]
-- **Slug:** [preenchido automaticamente]
-- **Tagline:** [NÃO ENCONTRADO — preencher]
-- **Descrição (1-2 frases):** [NÃO ENCONTRADO — preencher]
-- **Problema que resolve:** [NÃO ENCONTRADO — preencher]
-- **Público-alvo:** [NÃO ENCONTRADO — preencher]
-- **Diferencial competitivo:** [não definido — ajustar depois]
+**Nome:** [Nome comercial completo]
+**Tagline:** [Uma frase que resume o valor]
+**Categoria:** [SaaS | Marketplace | E-commerce | Serviço | Infoproduto | Agência | Outro]
+**Estágio:** [Ideia | MVP | Validação | Crescimento | Escala]
+**CNPJ/CPF:** [se já constituído — ou: "PF por ora"]
 
-## 2. Mercado
+## 2. Problema e Solução
 
-- **Setor/Nicho:** [NÃO ENCONTRADO — preencher]
-- **Geografia inicial:** [não definido — ajustar depois]
-- **Tamanho estimado do mercado:** [não definido — ajustar depois]
-- **Concorrentes diretos:** [não definido — ajustar depois]
-- **Tendências relevantes:** [não definido — ajustar depois]
+### Problema
+[Descreva o problema que o negócio resolve. Seja específico: quem sofre, com que frequência, qual o custo da dor.]
 
-## 3. Modelo de Negócio
+### Solução
+[Como o produto/serviço resolve o problema. O que o diferencia.]
 
-- **Tipo:** [NÃO ENCONTRADO — preencher]
-  <!-- Exemplos: SaaS mensal, assinatura anual, transacional por uso,
-       marketplace com comissão, freemium, venda única -->
-- **Preço principal:** [NÃO ENCONTRADO — preencher]
-  <!-- Ex: R$ 97/mês, R$ 497 único, 15% de comissão -->
-- **Planos/tiers:** [não definido — ajustar depois]
-- **Free trial / freemium:** [ ] sim  [ ] não
-- **Receita recorrente (MRR) alvo (6 meses):** [não definido — ajustar depois]
+### Por que agora?
+[Por que este momento é o momento certo para este negócio.]
 
-## 4. Produto / MVP
+## 3. Público-Alvo (ICP)
 
-- **O que o MVP entrega:** [NÃO ENCONTRADO — preencher]
-- **Funcionalidades core (v1):**
-  1. [NÃO ENCONTRADO — preencher]
-  2. [não definido — ajustar depois]
-  3. [não definido — ajustar depois]
-- **Funcionalidades futuras (v2+):** [não definido — ajustar depois]
-- **Status atual:** [ ] ideia  [ ] protótipo  [ ] MVP  [ ] em produção
+### Perfil primário
+- **Quem:** [idade, profissão, renda, região]
+- **Dor principal:** [em palavras do próprio cliente]
+- **Onde está:** [Instagram, LinkedIn, Google, WhatsApp, etc.] *
+- **Como decide:** [impulso | pesquisa | indicação | autoridade]
+- **Ticket que pagaria:** [faixa de preço aceitável]
+
+### Perfil secundário (se houver)
+[Mesmo formato acima]
+
+## 4. Produto / Serviço
+
+### Oferta principal
+[Descreva o que é vendido, o formato de entrega, e o que o cliente recebe.]
+
+### Modelo de precificação (*)
+- Tipo: [assinatura mensal | assinatura anual | avulso | por uso | freemium | comissão]
+- Preço: [R$ X/mês | R$ X único | X% de comissão]
+- Trial: [sim — N dias | não]
+- Parcelamento: [sim — Xx sem juros | não]
+
+### Jornada do cliente
+[Descreva o caminho: descoberta → interesse → decisão → compra → uso → retenção → indicação]
 
 ## 5. Canais de Aquisição (*)
 
-> Marque [x] nos canais que serão usados. Cada [x] infere contas necessárias.
+> Esta seção é usada pelo instalador para inferir quais plataformas de ads configurar.
 
-- [ ] **Meta Ads** (Instagram/Facebook)  → *infere: Meta Business, Ad Account, Pixel*
-- [ ] **Google Ads**                      → *infere: Google Ads, conta de faturamento*
-- [ ] **Google orgânico / SEO**           → *infere: Google Search Console, GA4*
-- [ ] **WhatsApp Business**               → *infere: WhatsApp Business API, número dedicado*
-- [ ] **Email marketing**                 → *infere: SendGrid ou equivalente*
-- [ ] **Conteúdo / Blog**                 → *infere: CMS ou gerador estático*
-- [ ] **Redes sociais orgânico**          → *infere: perfis comerciais*
-- [ ] **Indicação / referral**            → *infere: sistema de referral*
-- [ ] **Parcerias / B2B**
+- [ ] **Meta Ads** (Facebook / Instagram) — [sim | não | planejado]
+- [ ] **Google Ads** (Search / Display / YouTube) — [sim | não | planejado]
+- [ ] **WhatsApp** (atendimento / campanha ativa) — [sim | não | planejado]
+- [ ] **Email marketing** (lista própria / newsletter) — [sim | não | planejado]
+- [ ] **SEO / Conteúdo orgânico** — [sim | não | planejado]
+- [ ] **Indicação / Afiliados** — [sim | não | planejado]
+- [ ] **Comunidades / Grupos** — [sim | não | planejado]
+- [ ] **Influenciadores** — [sim | não | planejado]
+- [ ] **Outbound / SDR** — [sim | não | planejado]
 - [ ] **Outro:** ___
 
-## 6. Pagamentos e Financeiro (*)
+## 6. Pagamentos (*)
 
-- **Processador:** [ ] Stripe  [ ] PagSeguro  [ ] Mercado Pago  [ ] Outro: ___
-- **Stripe Connect (marketplace)?** [ ] sim  [ ] não
-- **Moeda principal:** BRL
-- **Nota fiscal:** [ ] sim  [ ] não  — Provedor: ___
-- **Orçamento mensal de marketing:** [não definido — ajustar depois]
-- **Budget diário máx. ads:** [não definido — ajustar depois]
+> Esta seção determina a configuração do Stripe.
 
-## 7. Stack Técnico (*)
+- **Processador:** [Stripe | PagSeguro | Mercado Pago | Outro]
+- **Moeda principal:** [BRL | USD | outro]
+- **Tipo de cobrança:** [único | recorrente | ambos]
+- **Marketplace/repasse:** [sim — percentual: X% | não] *
+- **Checkout:** [próprio | plataforma terceira (Hotmart, Kiwify, etc.)]
+- **NF eletrônica:** [necessária | não por ora]
 
-> Cada item marcado infere credenciais no secrets.yaml.
+## 7. Stack de Produto (*)
 
-- **Hospedagem:** [ ] Vercel  [ ] Netlify  [ ] AWS  [ ] Cloudflare Pages  [ ] Outro: ___
-- **Backend/API:** [ ] Supabase  [ ] Firebase  [ ] API própria  [ ] Outro: ___
-- **Banco de dados:** [ ] Supabase (Postgres)  [ ] PlanetScale  [ ] MongoDB  [ ] Outro: ___
-- **Auth:** [ ] Supabase Auth  [ ] Auth0  [ ] Clerk  [ ] Outro: ___
-- **Email transacional:** [ ] SendGrid  [ ] Resend  [ ] SES  [ ] Outro: ___
-- **Analytics:** [ ] Google Analytics 4  [ ] PostHog  [ ] Mixpanel  [ ] Outro: ___
-- **Domínio:** [não definido — ajustar depois]
-- **DNS/CDN:** [ ] Cloudflare  [ ] Route53  [ ] Outro: ___
+> Determina quais serviços de infraestrutura configurar.
 
-## 8. Equipe e Operação
+- **Frontend:** [Next.js | React | Vue | WordPress | Webflow | outro | não definido]
+- **Backend:** [Node | Python | não definido]
+- **Banco de dados:** [Supabase | PlanetScale | Firebase | outro | não definido] *
+- **Hospedagem:** [Vercel | Netlify | Railway | AWS | outro | não definido] *
+- **Auth:** [Supabase Auth | NextAuth | Clerk | outro | não definido]
+- **Analytics:** [Google Analytics | PostHog | Mixpanel | outro | não definido] *
+- **Email transacional:** [SendGrid | Resend | SES | outro | não definido] *
+- **CRM:** [não definido | HubSpot | RD Station | outro]
 
-- **Fundador(es):** [NÃO ENCONTRADO — preencher]
-- **Tamanho da equipe:** [não definido — ajustar depois]
-- **Papel do agente IA:** [NÃO ENCONTRADO — preencher]
-  <!-- Ex: pesquisa de mercado, criação de copy, gestão de ads,
-       monitoramento de métricas, geração de relatórios -->
+## 8. Métricas de Sucesso
 
-## 9. Cronograma
+### Meta de validação (30-90 dias)
+- **Usuários/clientes pagantes:** [N]
+- **MRR alvo:** [R$ X]
+- **CAC máximo aceitável:** [R$ X]
+- **LTV mínimo esperado:** [R$ X]
+- **Taxa de conversão alvo (landing → trial/compra):** [X%]
 
-- **Prazo para primeiros clientes pagantes:** [NÃO ENCONTRADO — preencher]
-- **Marcos próximos:**
-  1. [não definido — ajustar depois]
-  2. [não definido — ajustar depois]
-  3. [não definido — ajustar depois]
+### North Star Metric
+[A métrica que, se crescer, indica que o negócio está saudável]
 
-## 10. Notas e Contexto Adicional
+## 9. Concorrentes
 
-<!-- Qualquer informação relevante que não se encaixe nas seções acima.
-     Links para documentos, apresentações, referências de mercado, etc. -->
+| Concorrente | Preço | Diferencial deles | Nossa vantagem |
+|---|---|---|---|
+| [Nome] | [R$ X] | [o que fazem bem] | [por que somos melhores para o ICP] |
 
-[não definido — ajustar depois]
+## 10. Restrições e Compliance
+
+- **Setor regulado:** [sim — regulador: X | não]
+- **LGPD:** [dados sensíveis? quais?]
+- **Restrições de ads:** [Meta política especial? Google categoria restrita?]
+- **Dependências críticas:** [parceiros, APIs, fornecedores sem substituto]
+
+## 11. Contexto Operacional
+
+- **Time:** [só fundador | N pessoas | squad contratado]
+- **Budget mensal de marketing:** [R$ X]
+- **Prazo para validação:** [N semanas/meses]
+- **Restrições geográficas:** [Brasil todo | região específica | global]
+- **Idioma do produto:** [PT-BR | EN | outro]
+
+## 12. Comunicação e Voz da Marca
+
+- **Tom:** [formal | informal | técnico | inspiracional | direto]
+- **Identidade visual:** [cores principais, logo disponível?]
+- **Nome do remetente de emails:** [Ex: "Lucas da Negocia.ai"]
+- **Assinatura padrão de emails:** [texto livre]
+
+## 13. Infraestrutura (preenchido pelo instalador)
+
+> Esta seção é atualizada automaticamente pelo Prompt D após a pré-instalação.
+
+```yaml
+contas_configuradas:
+  - servico: ""
+    ambiente: ""      # sandbox | production
+    data: ""
+    responsavel: ""
+
+observacoes: ""
+```
