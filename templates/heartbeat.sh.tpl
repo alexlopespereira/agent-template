@@ -39,8 +39,13 @@ if [ -f "{{ WORK_DIR }}/tools/heartbeat-preflight.sh" ]; then
   echo "Preflight: $PREFLIGHT" >> "$LOG"
 fi
 
-# Run heartbeat via Claude Code
-if claude -p "/{{ SKILL_PREFIX }}-heartbeat" \
+# Preserve API keys for agent tools (e.g. FastAPI services that call LLMs),
+# then unset ANTHROPIC_API_KEY so Claude Code uses logged-in account auth.
+export AGENT_ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}"
+export AGENT_OPENAI_API_KEY="${OPENAI_API_KEY:-}"
+export AGENT_WORKSPACE="$(pwd)"
+unset ANTHROPIC_API_KEY
+if claude -p "/{{ SKILL_PREFIX }}-heartbeat" --model claude-sonnet-4-6 \
   --max-turns 30 \
   --allowedTools "Bash(*),Read(*),Write(*),Edit(*),Glob(*),Grep(*),WebSearch(*),WebFetch(*),Task(*),Skill(*)" \
   >> "$LOG" 2>&1; then
@@ -48,6 +53,9 @@ if claude -p "/{{ SKILL_PREFIX }}-heartbeat" \
 else
   echo "--- failed $(date -Iseconds) (exit code $?) ---" >> "$LOG"
 fi
+
+# Cleanup guardrail session state
+rm -f /tmp/guardrail-session-*.json /tmp/guardrail-approval-* 2>/dev/null || true
 
 # Sync RAG index (if search system is installed)
 if [ -f "{{ WORK_DIR }}/search/ingest.py" ]; then
