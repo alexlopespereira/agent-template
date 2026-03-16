@@ -86,6 +86,8 @@ Prioritize these sources over any generic knowledge.
 - **Execution > planning** — when action is needed, act now.
 - **Blog ALWAYS** — insights must go to the blog. Primary channel.
 - **Generalize > special-case** — no hard-coded behavior for specific situations.
+- **Customer-facing = production quality** — every deployed asset must look like an established business. No "coming soon", no placeholder text, no broken layouts. If it's not ready, don't deploy.
+- **Brand consistency** — all customer touchpoints follow business.md Section 12. Same tone, same visual identity, same voice.
 
 ## Heartbeat
 

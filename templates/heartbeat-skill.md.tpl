@@ -20,6 +20,12 @@ Quando este skill é invocado, execute o seguinte ciclo:
 1. Avalie o estado atual das métricas (seção 7 do business.md)
 2. Identifique a hipótese de maior impacto/custo da seção 8
 3. Se não há hipóteses abertas, proponha uma nova baseada nos dados
+4. Audite assets customer-facing (LP, emails, copy):
+   - Consistência com business.md Seção 12 (tom, cores, voz)
+   - Zero placeholders/lorem ipsum em assets deployados
+   - Trust signals presentes se aceitando pagamentos
+   - Social proof real (ou ausente, nunca fabricado)
+   Se encontrar problemas, priorize corrigi-los ANTES de novas hipóteses.
 
 ### Passo 2 — Execução
 1. Escolha UMA hipótese para testar neste ciclo
