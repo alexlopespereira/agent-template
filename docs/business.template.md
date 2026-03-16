@@ -139,10 +139,42 @@ owner: ""
 
 ## 12. Comunicação e Voz da Marca
 
-- **Tom:** [formal | informal | técnico | inspiracional | direto]
-- **Identidade visual:** [cores principais, logo disponível?]
+### Tom e voz
+- **Tom geral:** [formal | informal | técnico | inspiracional | direto]
+- **Registro por canal:**
+  - Landing page: [ex: direto e empático, sem jargão]
+  - Email: [ex: pessoal, como se fosse de um humano]
+  - Social media: [ex: casual, educativo]
+  - WhatsApp: [ex: conversacional, breve]
+
+### Identidade visual
+- **Cores primárias:** [hex codes]
+- **Cores secundárias:** [hex codes]
+- **Tipografia:** [fonte títulos / fonte corpo]
+- **Logo:** [disponível em assets/logo.svg | a criar]
+- **Estilo visual:** [minimalista | tech | amigável | corporativo]
+
+### Comunicação: DO vs DON'T
+- **DO:** [ex: usar dados reais, falar a língua do ICP, mostrar resultado concreto]
+- **DON'T:** [ex: prometer resultado garantido, usar urgência falsa, inventar depoimentos]
+
+### Trust signals (obrigatórios antes de transação real)
+- [ ] Termos de uso publicados
+- [ ] Política de privacidade (LGPD)
+- [ ] Página "Sobre" ou seção de credibilidade
+- [ ] Email profissional (domínio próprio)
+- [ ] Política de reembolso clara
+- [ ] CNPJ visível (quando constituído)
+
+### Dados de remetente
 - **Nome do remetente de emails:** [Ex: "Lucas da Negocia.ai"]
 - **Assinatura padrão de emails:** [texto livre]
+
+### Valores da marca
+[3-5 valores que guiam toda comunicação. Ex: transparência, eficiência, acessibilidade]
+
+### Red lines de comunicação
+[O que NUNCA fazer. Ex: fabricar prova social, prometer economia antes de entregar, dark patterns]
 
 ## 13. Infraestrutura (preenchido pelo instalador)
 
