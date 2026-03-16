@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """edge-meta-report — Generate meta-report for publication state changes.
 
-Captures state delta, reads scratchpad, runs adversarial challenge.
-The agent reads this BEFORE making manual state changes.
+Part 1 (pre-state): Captures state delta, reads scratchpad, runs adversarial challenge.
+Part 2 (post-state): Appends what actually changed after state commit.
 
 Outputs: ~/edge/meta-reports/{slug}-meta.md
 Archives scratchpad to: ~/edge/scratchpads/{slug}-{timestamp}.md
 
 Usage:
-  edge-meta-report --slug SLUG --entry PATH
-  edge-meta-report --slug SLUG --entry PATH --scratchpad /tmp/edge-scratch-active.md
-  edge-meta-report --slug SLUG --entry PATH --no-adversarial
+  edge-meta-report --slug SLUG --entry PATH                    # Part 1: pre-state
+  edge-meta-report --slug SLUG --entry PATH --no-adversarial   # Part 1: skip adversarial
+  edge-meta-report --slug SLUG --post-state                    # Part 2: append post-state
   edge-meta-report --slug SLUG --entry PATH --dry-run
 """
 
@@ -29,8 +29,23 @@ SCRATCHPADS_ARCHIVE = HOME / "edge" / "scratchpads"
 EDGE_DIR = HOME / "edge"
 CONSULT_SCRIPT = HOME / "edge" / "tools" / "edge-consult.py"
 
+# Load memory_project_dir from branding if available
+sys.path.insert(0, str(HOME / "edge" / "config"))
+try:
+    from branding import load_branding
+    _MEMORY_PROJECT = load_branding().get("memory_project_dir", "")
+except Exception:
+    _MEMORY_PROJECT = ""
+
+if _MEMORY_PROJECT:
+    _MEMORY_PATH = str(HOME / ".claude" / "projects" / _MEMORY_PROJECT / "memory")
+else:
+    _proj_base = HOME / ".claude" / "projects"
+    _candidates = [d for d in _proj_base.iterdir() if d.is_dir()] if _proj_base.exists() else []
+    _MEMORY_PATH = str(_candidates[0] / "memory") if _candidates else str(_proj_base / "memory")
+
 TRACKED_REPOS = {
-    str(HOME / ".claude" / "projects" / "-home-vboxuser" / "memory"): "memory",
+    _MEMORY_PATH: "memory",
     str(HOME / ".claude" / "skills"): "skills",
     str(HOME / "edge" / "notes"): "notes",
 }
@@ -104,29 +119,26 @@ def read_scratchpad(scratchpad_path):
 
 
 def run_adversarial(summary, entry_path):
-    """Run edge-consult adversarial on the publication summary."""
-    # Try edge-consult in PATH first, then direct script
+    """Run edge-consult adversarial (calls both GPT-5.4 + Grok-4.20 internally)."""
     cmd_candidates = [
         ["edge-consult"],
         [sys.executable, str(CONSULT_SCRIPT)],
     ]
 
+    question = f"Publicação: {summary}. Onde esse raciocínio é mais fraco? O que não estou vendo?"
+
     for base_cmd in cmd_candidates:
-        cmd = base_cmd + [
-            f"Publicação: {summary}. Onde esse raciocínio é mais fraco? O que não estou vendo?",
-            "--context", str(entry_path),
-        ]
+        cmd = base_cmd + [question, "--context", str(entry_path)]
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
             if result.returncode == 0:
                 return result.stdout.strip()
-            # If the command was found but failed, return the error
             if result.returncode != 127:
                 return f"[edge-consult exit {result.returncode}: {result.stderr.strip()[:200]}]"
         except FileNotFoundError:
             continue
         except subprocess.TimeoutExpired:
-            return "[edge-consult timeout (60s)]"
+            return "[edge-consult timeout (120s)]"
 
     return "[edge-consult não encontrado]"
 
@@ -248,16 +260,170 @@ def generate_meta_report(slug, fm, diffs, scratchpad_content, adversarial_output
     return "\n".join(lines)
 
 
+def capture_post_state_changes(slug, entry_path):
+    """Capture what actually changed after state commit (Phase 5)."""
+    lines = []
+    lines.append("")
+    lines.append(f"## O que mudou (pós-commit)")
+    lines.append(f"<!-- post-state: {datetime.now().isoformat()} -->")
+    lines.append("")
+
+    fm = read_frontmatter(entry_path) if entry_path else {}
+    claims = fm.get("claims", [])
+    threads = fm.get("threads", [])
+
+    # ── Claims written ──
+    if claims:
+        open_c = [c for c in claims if _is_open(c)]
+        closed_c = [c for c in claims if not _is_open(c)]
+        lines.append(f"### Claims registradas ({len(claims)})")
+        for c in closed_c:
+            text = c.get("claim", str(c)) if isinstance(c, dict) else str(c).lstrip("! ")
+            lines.append(f"- ✓ {text}")
+        for c in open_c:
+            text = c.get("claim", str(c)) if isinstance(c, dict) else str(c).lstrip("! ")
+            lines.append(f"- ? {text}")
+        lines.append("")
+
+    # ── Threads touched ──
+    if threads:
+        threads_dir = HOME / "edge" / "threads"
+        lines.append(f"### Threads tocados ({len(threads)})")
+        for tid in threads:
+            tfile = threads_dir / f"{tid}.md"
+            if tfile.exists():
+                # Read status and title
+                content = tfile.read_text()
+                status = ""
+                title = tid
+                for line in content.split("\n"):
+                    if line.startswith("status:"):
+                        status = line.split(":", 1)[1].strip()
+                    if line.startswith("title:"):
+                        title = line.split(":", 1)[1].strip().strip('"')
+                lines.append(f"- **{tid}** [{status}] — {title}")
+            else:
+                lines.append(f"- **{tid}** — arquivo não encontrado")
+        lines.append("")
+
+    # ── Event logged ──
+    events_file = HOME / "edge" / "logs" / "events.jsonl"
+    if events_file.exists():
+        slug_artifact = f"blog/entries/{slug}.md"
+        for raw_line in reversed(events_file.read_text().splitlines()[-20:]):
+            try:
+                evt = json.loads(raw_line)
+                if slug_artifact in evt.get("artifacts", []):
+                    lines.append("### Evento registrado")
+                    lines.append(f"- **ID:** {evt.get('event_id', '?')}")
+                    lines.append(f"- **Tipo:** {evt.get('type', '?')}")
+                    lines.append(f"- **Resumo:** {evt.get('summary', '?')}")
+                    lines.append("")
+                    break
+            except Exception:
+                pass
+
+    # ── Actual git diffs (what changed in state files) ──
+    lines.append("### Diff real dos arquivos de estado")
+    found_diffs = False
+    for dirpath, prefix in TRACKED_REPOS.items():
+        if not os.path.isdir(dirpath):
+            continue
+        # Show actual file-level changes
+        result = subprocess.run(
+            ["git", "diff", "HEAD", "--name-status"],
+            cwd=dirpath, capture_output=True, text=True
+        )
+        result2 = subprocess.run(
+            ["git", "status", "--short"],
+            cwd=dirpath, capture_output=True, text=True
+        )
+        changes = (result.stdout.strip() + "\n" + result2.stdout.strip()).strip()
+        if changes:
+            found_diffs = True
+            lines.append(f"**{prefix}/**")
+            lines.append("```")
+            lines.append(changes)
+            lines.append("```")
+
+    # Edge repo state files specifically
+    state_files = ["briefing.md", "threads/", "logs/events.jsonl"]
+    result = subprocess.run(
+        ["git", "diff", "HEAD", "--stat", "--", *state_files],
+        cwd=str(EDGE_DIR), capture_output=True, text=True
+    )
+    if result.stdout.strip():
+        found_diffs = True
+        lines.append("**edge/ (state files)**")
+        lines.append("```")
+        lines.append(result.stdout.strip())
+        lines.append("```")
+
+    if not found_diffs:
+        lines.append("*Nenhuma mudança detectada nos arquivos de estado.*")
+    lines.append("")
+
+    # ── Briefing updated? ──
+    briefing = HOME / "edge" / "briefing.md"
+    if briefing.exists():
+        mtime = datetime.fromtimestamp(briefing.stat().st_mtime)
+        age_seconds = (datetime.now() - mtime).total_seconds()
+        if age_seconds < 120:  # Updated in last 2 min = this pipeline
+            lines.append("### briefing.md")
+            # Show first 10 lines
+            content = briefing.read_text().split("\n")[:10]
+            lines.append("```")
+            lines.append("\n".join(content))
+            lines.append("```")
+            lines.append("")
+
+    return "\n".join(lines)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Generate publication meta-report")
     parser.add_argument("--slug", required=True, help="Publication slug")
-    parser.add_argument("--entry", required=True, help="Path to blog entry .md")
+    parser.add_argument("--entry", default=None, help="Path to blog entry .md")
     parser.add_argument("--scratchpad", help="Path to scratchpad file")
     parser.add_argument("--no-adversarial", action="store_true", help="Skip edge-consult")
+    parser.add_argument("--post-state", action="store_true", help="Append post-state changes to existing meta-report")
     parser.add_argument("--dry-run", action="store_true", help="Print without saving")
     args = parser.parse_args()
 
     META_DIR.mkdir(parents=True, exist_ok=True)
+
+    # ── Post-state mode: append to existing meta-report ──
+    if args.post_state:
+        meta_path = META_DIR / f"{args.slug}-meta.md"
+        entry_path = args.entry
+        # Try to find entry if not provided
+        if not entry_path:
+            candidate = HOME / "edge" / "blog" / "entries" / f"{args.slug}.md"
+            if candidate.exists():
+                entry_path = str(candidate)
+
+        post_content = capture_post_state_changes(args.slug, entry_path)
+
+        if args.dry_run:
+            print(post_content)
+            return
+
+        if meta_path.exists():
+            # Insert before the final directive
+            existing = meta_path.read_text()
+            marker = "---\n*Diretriz:"
+            if marker in existing:
+                parts = existing.split(marker, 1)
+                updated = parts[0] + post_content + "\n" + marker + parts[1]
+            else:
+                updated = existing + "\n" + post_content
+            meta_path.write_text(updated)
+            print(f"OK: {meta_path} (post-state appended)")
+        else:
+            # No pre-state exists, write standalone
+            meta_path.write_text(f"# Meta: {args.slug}\n\n" + post_content)
+            print(f"OK: {meta_path} (post-state only)")
+        return
 
     # 1. Read frontmatter
     fm = read_frontmatter(args.entry)

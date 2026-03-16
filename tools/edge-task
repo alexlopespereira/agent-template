@@ -8,7 +8,7 @@ Usage:
   edge-task add "Title" --priority P1 --owner agent --criteria "Done when X"
   edge-task add "Title" -p P1 -o agent -c "Done when X" --thread foo --area ops
   edge-task update TASK-ID --status doing --next "Edit skill X"
-  edge-task block TASK-ID --reason "Need owner decision"
+  edge-task block TASK-ID --reason "Need Lucas decision"
   edge-task done TASK-ID --resolution "3 skills migrated"
   edge-task drop TASK-ID --reason "No longer relevant"
   edge-task list [--status todo|doing|blocked] [--priority P0|P1] [--owner agent|human]

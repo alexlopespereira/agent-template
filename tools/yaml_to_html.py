@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Converte YAML estruturado para HTML (conteudo do <main>) for reports.
+Converte YAML estruturado para HTML (conteudo do <main>) para relatorios.
 
 Uso:
     python3 yaml_to_html.py spec.yaml --output /tmp/content.html
@@ -95,7 +95,7 @@ def render_concept_grid(b):
         cells.append(
             f'<div class="callout callout-info">'
             f'<strong>{render_text(item.get("name", item.get("title", "(sem nome)")))}</strong><br>'
-            f'{render_text(item.get("text") or item.get("description") or "")}'
+            f'{render_text(item.get("text") or item.get("description") or item.get("definition") or "")}'
             f'</div>'
         )
     # Pair items in 2-column grids
@@ -166,8 +166,9 @@ def _render_single_numbered_card(b, default_num=""):
         bc = b.get("badge_class", "neutral")
         parts.append(badge_html(b["badge"], bc))
     parts.append('</div>')
-    if b.get("text"):
-        parts.append(f'<p style="font-size: 14px;">{render_text(b["text"])}</p>')
+    nc_text = b.get("text") or b.get("description") or b.get("content") or b.get("body") or ""
+    if nc_text:
+        parts.append(f'<p style="font-size: 14px;">{render_text(nc_text)}</p>')
     parts.append('</div>')
     return "\n".join(parts)
 
@@ -202,7 +203,7 @@ def render_flow_example(b):
     parts.append(
         f'<pre style="font-family: \'Courier New\', monospace; font-size: 12px; '
         f'line-height: 1.55; background: #DEF7EC; padding: 12px; border-radius: 6px; '
-        f'border-left: 3px solid var(--accent-green);">'
+        f'border-left: 3px solid var(--brand-green, #38a169);">'
         f'{render_pre(b["output"])}</pre>'
     )
 
@@ -221,6 +222,15 @@ def render_flow_example(b):
 
 @renderer("comparison")
 def render_comparison(b):
+    # Structural transform: flat left_*/right_* fields → nested before/after objects
+    for src, dst in [("left", "before"), ("right", "after")]:
+        if f"{src}_title" in b or f"{src}_items" in b:
+            b.setdefault(dst, {})
+            if f"{src}_title" in b:
+                b[dst].setdefault("title", b.pop(f"{src}_title"))
+            if f"{src}_items" in b:
+                b[dst].setdefault("bullets", b.pop(f"{src}_items"))
+
     def _side(side):
         p = [f'<div class="card">']
         p.append('<div class="card-header">')
@@ -244,8 +254,13 @@ def render_comparison(b):
             for bullet in bullets:
                 p.append(f'<li>{render_text(bullet)}</li>')
             p.append('</ul>')
-        if side.get("text"):
-            p.append(f'<p style="font-size: 14px;">{render_text(side["text"])}</p>')
+        side_text = side.get("text") or side.get("content") or side.get("description") or ""
+        if side_text:
+            # Support multiline: split on newlines for readability
+            for line in str(side_text).split("\n"):
+                line = line.strip()
+                if line:
+                    p.append(f'<p style="font-size: 14px;">{render_text(line)}</p>')
         p.append('</div>')
         return "\n".join(p)
 
@@ -261,7 +276,10 @@ def render_comparison(b):
 def render_table(b):
     highlight = set(b.get("highlight_rows", []))
     score_row_idx = b.get("score_row")
-    parts = ['<div class="table-wrapper">', '<table>', '<thead>', '<tr>']
+    parts = ['<div class="table-wrapper">']
+    if b.get("title"):
+        parts.append(f'<p style="font-weight:600;font-size:14px;margin-bottom:8px;">{render_text(b["title"])}</p>')
+    parts.extend(['<table>', '<thead>', '<tr>'])
     for h in b.get("headers", []):
         parts.append(f'<th>{render_text(h)}</th>')
     parts.append('</tr></thead><tbody>')
@@ -275,7 +293,13 @@ def render_table(b):
         for cell in row:
             parts.append(f'<td>{render_text(str(cell))}</td>')
         parts.append('</tr>')
-    parts.append('</tbody></table></div>')
+    parts.append('</tbody></table>')
+    if b.get("note"):
+        parts.append(
+            f'<p style="font-size: 12px; color: var(--gray-500); margin-top: 4px;">'
+            f'{render_text(b["note"])}</p>'
+        )
+    parts.append('</div>')
     return "\n".join(parts)
 
 
@@ -423,12 +447,12 @@ def render_next_steps_grid(b):
         parts.append('<div class="next-step-card">')
         # Support both "number" and "phase"/"priority" as the badge
         badge = step.get("number") or step.get("phase") or step.get("priority") or step.get("owner") or ""
-        title = step.get("title") or step.get("action") or ""
+        title = step.get("title") or step.get("action") or step.get("label") or ""
         parts.append(
             f'<span class="step-number">{html.escape(str(badge))}</span>'
             f'<span class="step-title">{render_text(title)}</span>'
         )
-        desc = step.get("description") or step.get("text") or step.get("detail") or ""
+        desc = step.get("description") or step.get("text") or step.get("detail") or step.get("content") or ""
         deadline = step.get("deadline") or ""
         if deadline:
             desc = f"{desc} ({deadline})" if desc else deadline
@@ -636,7 +660,7 @@ BLOCK_SCHEMAS = {
     "paragraph": {
         "required": ["text"],
         "optional": ["style"],
-        "synonyms": {},
+        "synonyms": {"content": "text", "description": "text", "body": "text"},
         "container_field": None,
     },
     "subsection": {
@@ -666,7 +690,7 @@ BLOCK_SCHEMAS = {
     "numbered-card": {
         "required": [],
         "optional": ["items", "number", "title", "badge", "badge_class", "text", "card_class"],
-        "synonyms": {},
+        "synonyms": {"content": "text", "description": "text", "body": "text", "badge_variant": "badge_class"},
         "container_field": None,
     },
     "flow-example": {
@@ -677,14 +701,14 @@ BLOCK_SCHEMAS = {
     },
     "comparison": {
         "required": [],
-        "optional": ["before", "after", "left", "right"],
+        "optional": ["before", "after", "left", "right", "left_title", "left_items", "right_title", "right_items", "title"],
         "synonyms": {"left": "before", "right": "after"},
         "container_field": None,
     },
     "table": {
         "required": ["headers", "rows"],
-        "optional": ["highlight_rows", "score_row"],
-        "synonyms": {},
+        "optional": ["highlight_rows", "score_row", "title", "note"],
+        "synonyms": {"columns": "headers"},
         "container_field": ("rows",),
     },
     "comparison-table": {
@@ -738,25 +762,25 @@ BLOCK_SCHEMAS = {
     "diff-block": {
         "required": [],
         "optional": ["header", "lines"],
-        "synonyms": {},
+        "synonyms": {"title": "header", "label": "header"},
         "container_field": ("lines",),
     },
     "raw-html": {
         "required": [],
         "optional": ["content", "html"],
-        "synonyms": {"html": "content"},
+        "synonyms": {"html": "content", "text": "content"},
         "container_field": None,
     },
     "derivation": {
         "required": [],
         "optional": ["title", "text", "bullets", "code", "label"],
-        "synonyms": {"steps": "bullets", "label": "title"},
+        "synonyms": {"steps": "bullets", "label": "title", "conclusion": "text"},
         "container_field": None,
     },
     "gap-marker": {
         "required": ["text"],
         "optional": ["id"],
-        "synonyms": {},
+        "synonyms": {"label": "text", "description": "text"},
         "container_field": None,
     },
     "gap-table": {
@@ -768,7 +792,7 @@ BLOCK_SCHEMAS = {
     "gap-resolution": {
         "required": [],
         "optional": ["gap_id", "gap", "text", "answer"],
-        "synonyms": {},
+        "synonyms": {"title": "gap", "question": "gap", "resolution": "answer"},
         "container_field": None,
     },
     "bibliography": {
@@ -861,7 +885,46 @@ def get_validation_error_count() -> int:
 
 
 _BLOCK_TYPE_ALIASES = {
+    # Paragraph aliases
+    "text": "paragraph",
+    "p": "paragraph",
+    "body": "paragraph",
+    # Table aliases
+    "key-value": "table",
+    "kv": "table",
+    "data-table": "table",
+    "stat-row": "table",
+    # Metrics aliases
+    "metrics": "metrics-grid",
+    "metric-card": "metrics-grid",
+    "metric-cards": "metrics-grid",
+    "kpi-row": "metrics-grid",
+    "kpi-grid": "metrics-grid",
+    "stats": "metrics-grid",
+    # Card aliases
+    "numbered-cards": "numbered-card",
+    "step-card": "numbered-card",
     "steps": "next-steps-grid",
+    # Code aliases
+    "code": "code-block",
+    "code-snippet": "code-block",
+    # Raw HTML aliases
+    "custom-html": "raw-html",
+    "html": "raw-html",
+    "svg": "raw-html",
+    # List aliases
+    "bullet-list": "list",
+    "bullets": "list",
+    "ordered-list": "list",
+    # Comparison aliases
+    "pros-cons": "comparison",
+    "compare": "comparison",
+    # Callout aliases
+    "note": "callout",
+    "warning": "callout",
+    "info": "callout",
+    "alert": "callout",
+    "tip": "callout",
 }
 
 
@@ -880,7 +943,7 @@ def render_block(block: dict) -> str:
         _log_render_event(block_type, "unknown_block_type", f"Block type '{block_type}' has no renderer")
         return f'<!-- unknown block type: {html.escape(block_type)} -->'
 
-    # Check for synonym usage (log before validation normalizes them away)
+    # Apply field synonyms (e.g. content → text for paragraph)
     schema = BLOCK_SCHEMAS.get(block_type)
     if schema:
         for syn, canonical in schema.get("synonyms", {}).items():
@@ -888,6 +951,7 @@ def render_block(block: dict) -> str:
                 _log_render_event(block_type, "synonym_used",
                                   f"'{syn}' usado em vez de '{canonical}' — aceito via synonym",
                                   fields=sorted(k for k in block if k != "type"))
+                block[canonical] = block.pop(syn)
 
     # Pre-render validation
     warnings = _validate_block(block_type, block)
