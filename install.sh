@@ -555,7 +555,7 @@ PYEOF
       warn "Erro ao processar: $rel_path"
       ((failed++))
     fi
-  done < <(find "$INSTALL_DIR" -name "*.tpl" -not -path "*/node_modules/*")
+  done < <(find "$INSTALL_DIR" -name "*.tpl" -not -path "*/node_modules/*" -not -name "heartbeat-skill.md.tpl")
 
   [[ $failed -gt 0 ]] && error "$failed templates falharam."
 
@@ -572,6 +572,32 @@ PYEOF
   # Tornar scripts executáveis
   chmod +x "$INSTALL_DIR/heartbeat.sh" 2>/dev/null || true
   chmod +x "$INSTALL_DIR/tools/"* 2>/dev/null || true
+
+  # Criar heartbeat skill (heartbeat.sh invoca /{SKILL_PREFIX}-heartbeat)
+  # O diretório da skill depende de SKILL_PREFIX, então não pode ser
+  # gerado pelo loop genérico de .tpl (que preserva caminhos relativos).
+  local skill_dir="$INSTALL_DIR/.claude/skills/${SKILL_PREFIX}-heartbeat"
+  local skill_tpl="$INSTALL_DIR/templates/heartbeat-skill.md.tpl"
+  if [[ -f "$skill_tpl" ]]; then
+    mkdir -p "$skill_dir"
+    python3 << PYEOF
+import os
+with open('$skill_tpl') as f:
+    content = f.read()
+placeholders = {
+    'SKILL_PREFIX': '$SKILL_PREFIX', 'CODENAME': os.environ.get('CODENAME',''),
+    'AGENT_DOMAIN': os.environ.get('AGENT_DOMAIN',''),
+    'AGENT_MISSION': os.environ.get('AGENT_MISSION',''),
+}
+for k, v in placeholders.items():
+    content = content.replace('{{ ' + k + ' }}', v)
+with open('$skill_dir/SKILL.md', 'w') as f:
+    f.write(content)
+PYEOF
+    success "Heartbeat skill criada: .claude/skills/${SKILL_PREFIX}-heartbeat/SKILL.md"
+  else
+    warn "Template heartbeat-skill.md.tpl não encontrado — skill não criada"
+  fi
 
   # Criar secrets/keys.env
   mkdir -p "$INSTALL_DIR/secrets"

@@ -6,7 +6,7 @@
 set -euo pipefail
 
 LOG="$HOME/.claude/heartbeat-output.log"
-LOCK="/tmp/claude-heartbeat.lock"
+LOCK="/tmp/claude-heartbeat-{{ AGENT_NAME }}.lock"
 
 # Avoid overlap: if another heartbeat is running, skip
 if [ -f "$LOCK" ]; then
