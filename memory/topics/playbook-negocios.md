@@ -24,7 +24,8 @@ Skills aplicáveis: `/competitor-alternatives`, `/marketing-ideas`, `/content-st
 Skills aplicáveis: `/domain-registration`, `/copywriting`, `/copy-editing`
 
 ## Fase 2: Presença Digital Mínima
-- [ ] Landing page publicada e acessível
+- [ ] Landing page publicada e acessível — use `/netlify-deploy` + `/dns-config`
+- [ ] DNS configurado (domínio apontando para Netlify) — use `/dns-config`
 - [ ] SEO básico (title, meta description, OG tags, sitemap)
 - [ ] Analytics instalado (GA4, Clarity, ou equivalente)
 - [ ] Pixel de conversão instalado (Meta, Google — conforme canal de aquisição)
@@ -32,7 +33,7 @@ Skills aplicáveis: `/domain-registration`, `/copywriting`, `/copy-editing`
 - [ ] Lead magnet disponível
 - [ ] Termos de uso e política de privacidade publicados
 
-Skills aplicáveis: `/page-cro`, `/seo-audit`, `/ai-seo`, `/analytics-tracking`, `/schema-markup`, `/site-architecture`, `/lead-magnets`, `/signup-flow-cro`
+Skills aplicáveis: `/netlify-deploy`, `/dns-config`, `/page-cro`, `/seo-audit`, `/ai-seo`, `/analytics-tracking`, `/schema-markup`, `/site-architecture`, `/lead-magnets`, `/signup-flow-cro`
 
 ## Fase 3: Aquisição e Growth
 - [ ] Canal primário de aquisição ativo (ads, orgânico, parcerias)
