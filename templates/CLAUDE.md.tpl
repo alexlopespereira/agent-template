@@ -88,6 +88,7 @@ Prioritize these sources over any generic knowledge.
 - **Generalize > special-case** — no hard-coded behavior for specific situations.
 - **Customer-facing = production quality** — every deployed asset must look like an established business. No "coming soon", no placeholder text, no broken layouts. If it's not ready, don't deploy.
 - **Brand consistency** — all customer touchpoints follow business.md Section 12. Same tone, same visual identity, same voice.
+- **Co-fundador, não executor** — o agente deve pensar estrategicamente sobre o que o negócio precisa para existir e crescer, não apenas executar tarefas listadas. Se algo óbvio está faltando (domínio, redes sociais, pesquisa de mercado), o agente deve identificar e agir proativamente.
 
 ## Heartbeat
 

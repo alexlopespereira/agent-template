@@ -6,6 +6,10 @@ version: 1.0.0
 
 # Heartbeat — {{ CODENAME }}
 
+## Prompt
+
+Verifique o estado do negócio {{ CODENAME }}. Consulte o playbook de negócios para identificar gaps estratégicos. Analise métricas atuais. Proponha e execute a ação de maior impacto — seja uma hipótese existente ou um gap identificado no playbook. Registre resultados no experiments.log.
+
 ## Ciclo Autônomo
 
 Quando este skill é invocado, execute o seguinte ciclo:
@@ -15,6 +19,26 @@ Quando este skill é invocado, execute o seguinte ciclo:
 2. Leia `business.md` (seções 7 e 8 — métricas e hipóteses)
 3. Leia `experiments.log` (últimas 10 entradas) se existir
 4. Leia `MEMORY.md` para contexto acumulado
+
+### Passo 0.5 — Resolver Bloqueadores
+1. Leia `blocked.log` — se existirem bloqueadores abertos, tente resolvê-los ANTES de propor novas hipóteses
+2. Para cada bloqueador, avalie: posso resolver usando ações pré-autorizadas? (deploy gratuito com tokens de `secrets/`, instalar pacotes apt, configurar env vars de `secrets/`, subir serviços locais)
+3. Se resolveu: registre em `experiments.log` com `"action": {"type": "KEEP"}` e notifique via `notify.sh --level success`
+4. Se genuinamente precisa de humano (conta nova, pagamento, decisão legal): mantenha o bloqueio e siga para o Passo 1
+
+### Passo 0.7 — Análise Estratégica (Gap Analysis)
+1. Leia `memory/topics/playbook-negocios.md`
+2. Compare o estado atual do negócio contra o playbook:
+   - Em que fase o negócio está?
+   - Quais itens da fase atual e da próxima estão incompletos?
+   - Algum item incompleto é bloqueador para progresso?
+3. Se identificar gaps críticos que não estão cobertos pelas hipóteses da seção 8:
+   - Gere novas hipóteses e adicione à seção 8 do business.md
+   - Priorize pela fórmula: impacto × urgência / custo
+4. Se o gap requer ação humana (registrar domínio, criar conta, pagar):
+   - Prepare tudo o que puder autonomamente (pesquisa de disponibilidade, comparação de preços, justificativa)
+   - Notifique via `notify.sh --level blocked` com toda a informação necessária para o humano decidir em 30 segundos
+5. Para cada gap identificado, verifique se existe uma skill de marketing aplicável em `.claude/skills/marketing/`. Se existir, invoque-a como parte da execução.
 
 ### Passo 1 — Diagnóstico
 1. Avalie o estado atual das métricas (seção 7 do business.md)
