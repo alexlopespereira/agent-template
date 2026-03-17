@@ -15,13 +15,13 @@ Skills aplicáveis: `/competitor-alternatives`, `/marketing-ideas`, `/content-st
 
 ## Fase 1: Fundação da Marca
 - [ ] Nome validado (disponibilidade de domínio, redes sociais, registro de marca)
-- [ ] Domínio registrado
+- [ ] Domínio registrado (preferência .ia.br → .com.br → .ai) — use `/domain-registration`
 - [ ] Identidade visual mínima (cores, logo, tipografia)
 - [ ] Contas em redes sociais criadas (Instagram, Twitter/X, LinkedIn, TikTok — conforme ICP)
 - [ ] Email profissional configurado (domínio próprio)
 - [ ] Página "sobre" ou bio consistente em todos os canais
 
-Skills aplicáveis: `/copywriting`, `/copy-editing`
+Skills aplicáveis: `/domain-registration`, `/copywriting`, `/copy-editing`
 
 ## Fase 2: Presença Digital Mínima
 - [ ] Landing page publicada e acessível
