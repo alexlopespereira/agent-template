@@ -105,5 +105,5 @@ Quando este skill é invocado, execute o seguinte ciclo:
 **NÃO usar deep research quando:**
 - A informação já está no business.md ou em experiments anteriores
 - A ação é operacional (deploy, config, criar LP) — não precisa de pesquisa externa
-- O ciclo já consumiu > $1 em tokens (reservar budget para o resto do heartbeat)
+- O ciclo já consumiu > 200k tokens da janela de contexto (reservar contexto para o resto do heartbeat)
 - A pergunta pode ser respondida com `edge-fontes` (busca rápida sem LLM)
