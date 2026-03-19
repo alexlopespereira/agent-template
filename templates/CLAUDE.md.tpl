@@ -58,6 +58,8 @@ Internal blog at `http://localhost:{{ BLOG_PORT }}/blog/`
 CLI tools in `{{ WORK_DIR }}/tools/`:
 - `{{ TOOL_PREFIX }}-fontes` — Unified external source search (USE instead of direct WebSearch)
 - `{{ TOOL_PREFIX }}-consult` — Cross-model adversarial review
+- `{{ TOOL_PREFIX }}-deepresearch` — Deep research via OpenAI (web_search) + Gemini (google_search)
+- `{{ TOOL_PREFIX }}-adversarial-research` — Adversarial validation with iterative convergence (cross-provider)
 - `{{ TOOL_PREFIX }}-state-lint` — State consistency linter
 - `{{ TOOL_PREFIX }}-state-audit` — State audit and snapshot
 - `consolidar-estado` — 8-phase publication pipeline (THE pipeline)
@@ -119,20 +121,46 @@ Prompt:
 - Never update CLAUDE.md directly from heartbeat. Only via reflection skill.
 - Never skip steps silently — use skill-step tracking.
 
+## Deep Research & Adversarial Validation
+
+For research-heavy tasks, use the deep research pipeline:
+
+1. **edge-deepresearch** — simultaneous deep research via OpenAI (web_search) and Gemini (google_search)
+   - `edge-deepresearch "topic"` — quick research from both providers
+   - `edge-deepresearch "topic" --depth comprehensive` — multi-angle analysis
+   - `edge-deepresearch "topic" --provider openai` — single provider
+
+2. **edge-adversarial-research** — cross-provider adversarial validation with convergence
+   - `edge-adversarial-research --claim-file report.md --source openai --mode converge` — iterative refinement
+   - `edge-adversarial-research --claim "X" --source gemini --mode full-tribunal` — prosecution/defense/verdict
+   - The `converge` mode runs up to 5 rounds of critique→refine until agreement >= 8/10
+
+**Workflow for validated research:**
+```
+edge-deepresearch "topic" --depth comprehensive > research.md
+edge-adversarial-research --claim-file research.md --source openai --mode converge > validated.md
+```
+
+The cross-provider design ensures genuine adversarial tension: different search
+engines, different indices, different ranking algorithms.
+
 ## Self-Improvement
 
 The agent improves via multiple mechanisms:
 1. review-gate.py — automatic quality gate before every publication
 2. edge-consult — adversarial review by different model
-3. edge-state-audit — state change auditing (snapshot PRE vs POST)
-4. edge-state-lint — consistency linter (gaps, broken refs, stale threads)
-5. edge-skill-step — detects silently skipped steps
-6. misses.md — error log → becomes new rules
-7. Reflection skill — dedicated self-reflection
+3. edge-deepresearch — deep research grounded in web sources (OpenAI + Gemini)
+4. edge-adversarial-research — iterative cross-provider validation until convergence
+5. edge-state-audit — state change auditing (snapshot PRE vs POST)
+6. edge-state-lint — consistency linter (gaps, broken refs, stale threads)
+7. edge-skill-step — detects silently skipped steps
+8. misses.md — error log → becomes new rules
+9. Reflection skill — dedicated self-reflection
 
 The cycle:
 ```
 production → review-gate (quality) → edge-consult (bias) →
+deep-research (grounding) → adversarial-research (convergence) →
 publication → state-audit (integrity) → skill-step end (completeness) →
 periodic reflection → misses → new rules → improved production
 ```

@@ -43,6 +43,7 @@ fi
 # then unset ANTHROPIC_API_KEY so Claude Code uses logged-in account auth.
 export AGENT_ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}"
 export AGENT_OPENAI_API_KEY="${OPENAI_API_KEY:-}"
+export AGENT_GOOGLE_API_KEY="${GOOGLE_API_KEY:-}"
 export AGENT_WORKSPACE="$(pwd)"
 unset ANTHROPIC_API_KEY
 if claude -p "/{{ SKILL_PREFIX }}-heartbeat" --model claude-sonnet-4-6 \
