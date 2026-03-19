@@ -1,0 +1,162 @@
+# autoresearch_config.yaml
+# Arquivo IMUTÁVEL — equivalente ao prepare.py do Karpathy.
+# Só o humano modifica. O outer loop lê, nunca escreve.
+
+experiment:
+  id: "outer-exp-001"
+  name: "Business Agent Autoresearch"
+  repo: "https://github.com/alexlopespereira/agent-template"
+  started_at: null          # preenchido pelo runner na primeira execução
+  description: >
+    Outer loop de autoresearch que itera sobre qualquer artefato do
+    repositório agent-template para maximizar a taxa de sucesso de
+    hipóteses de negócio do inner agent.
+
+# ─────────────────────────────────────────────
+# MÉTRICA OBJETIVA (o "val_bpb" deste experimento)
+# ─────────────────────────────────────────────
+objective_metric:
+  name: "heartbeat_output_quality"
+  description: >
+    Score 0-100 avaliado por LLM-as-judge (Haiku) em cada entry do
+    experiments.log. Mede qualidade real dos heartbeats: hipótese bem
+    formulada, execução concreta, metric_delta justificado, progresso
+    no playbook.
+  formula: "mean(llm_judge_score) over last N entries"
+  source_file: "experiments.log"           # append-only, nunca modificado pelo outer loop
+  window_cycles: 5                          # medir sobre os últimos N ciclos do inner loop
+  higher_is_better: true
+  minimum_decided_experiments: 3           # não avaliar com menos que isso (sem potência)
+  judge_model: "claude-haiku-4-5-20251001"
+  rubric:
+    - dimension: "hypothesis_quality"
+      weight: 25
+      criterion: "Hipótese tem variável, direção, magnitude e mecanismo?"
+    - dimension: "execution_concreteness"
+      weight: 25
+      criterion: "Execução produziu artefato concreto (não só análise)?"
+    - dimension: "metric_delta"
+      weight: 25
+      criterion: "metric_delta é não-nulo e justificado?"
+    - dimension: "playbook_progress"
+      weight: 25
+      criterion: "Ação avançou o playbook (fechou gap ou testou algo novo)?"
+
+# ─────────────────────────────────────────────
+# MÉTRICAS DE GUARDA (hard constraints)
+# ─────────────────────────────────────────────
+guard_metrics:
+  # Se qualquer guarda for violada → REVERT imediato, independente da métrica objetiva
+  - name: "ethical_violations"
+    source: "experiments.log"              # campo: ethical_check.status == BLOCKED
+    threshold: 0                           # zero tolerância
+    operator: "eq"
+    description: "Nenhuma violação ética pode ocorrer"
+
+  - name: "agent_error_rate"
+    source: "logs/heartbeat-*.log"
+    threshold: 0.20                        # máx 20% de beats com erro
+    operator: "lte"
+    description: "Agente não pode ficar instável"
+
+  - name: "avg_tokens_per_cycle"
+    source: "metrics.json"
+    threshold: 150000                      # máx 150k tokens/ciclo (custo)
+    operator: "lte"
+    description: "Eficiência mínima de tokens"
+
+  - name: "business_primary_metric_regression"
+    source: "business.md"                  # seção 7, snapshot histórico
+    threshold: -0.10                       # não regredir mais de 10% vs baseline
+    operator: "gte"
+    description: "Métrica de negócio não pode regredir vs baseline"
+
+# ─────────────────────────────────────────────
+# ARQUIVOS IMUTÁVEIS (o outer loop NUNCA toca)
+# ─────────────────────────────────────────────
+immutable_files:
+  - "autoresearch_config.yaml"             # este arquivo
+  - "autoresearch_runner.py"               # o runner do outer loop
+  - "autoresearch.md"                      # as instruções do outer agent
+  - "business.md"                          # verdade do negócio (sections 1,2,7,10)
+  - "experiments.log"                      # measurement tool — append-only
+  - "metrics.json"                         # measurement tool — append-only
+  - "outer_experiments.log"               # log do outer loop
+  - "install.sh"                           # infraestrutura
+  - "systemd/"                             # infraestrutura
+  - ".env"                                 # segredos
+  - "secrets/"                             # segredos
+  - ".gitignore"
+  - "REPLICATION_BLUEPRINT.md"
+  - "PLACEHOLDER_MANIFEST.md"
+
+# ─────────────────────────────────────────────
+# ARTEFATOS MUTÁVEIS (o lever)
+# Cada artefato tem tipos de mutação permitidos
+# ─────────────────────────────────────────────
+mutable_artifacts:
+
+  - path: ".claude/skills/{{PREFIX}}-heartbeat/SKILL.md"
+    priority: 1
+    mutation_types:
+      - "modify_beat_dispatch_logic"       # mudar como decide qual skill despachar
+      - "modify_explore_phase"             # mudar o que acontece no EXPLORE
+      - "add_preflight_check"              # nova verificação no passo 0
+    max_lines_changed: 40
+    rationale: >
+      O heartbeat skill é o "código que roda a cada iteração" — mutações
+      nele têm efeito imediato e observável no comportamento do agente.
+
+  - path: "memory/rules-core.md"
+    priority: 2
+    mutation_types:
+      - "add_rule"                         # nova regra cross-cutting
+      - "remove_rule"                      # remover regra que bloqueia desnecessariamente
+      - "modify_rule"                      # ajustar threshold ou condição
+    max_lines_changed: 20
+    constraint: "max 15 regras no arquivo"
+    rationale: >
+      Regras que sempre são carregadas. Impacto imediato em todos os beats.
+      Espaço limitado e controlável (~15 regras).
+
+# ─────────────────────────────────────────────
+# PARÂMETROS DO OUTER LOOP
+# ─────────────────────────────────────────────
+outer_loop:
+  inner_cycles_per_experiment: 5           # heartbeats a rodar antes de medir
+  max_outer_experiments: 10               # parar após N mutações avaliadas
+  min_improvement_to_keep: 0.02           # Δ mínimo de 2pp para KEEP (vs. ruído)
+  cooldown_between_experiments: 0.5       # horas de espera após cada outer experiment (30min)
+  mutation_temperature: 0.5               # temperatura do LLM ao propor mutações
+  git_tag_on_keep: true                   # criar tag git em cada KEEP
+
+  # Replicação: aplicar mesma mutação nos 5 agentes (N=5 réplicas)
+  replicas:
+    enabled: true
+    agents:
+      - "devolver_ai"
+      - "fornece_ai"
+      - "negocia_ai"
+      - "parceiro_ai"
+      - "recruta_ai"
+    agents_base_dir: "${HOME}/Projects/business-experiments"
+    keep_criteria:
+      min_mean_quality_delta: 0.02        # mean(quality_delta) > threshold
+      max_regression_pct: 0.15            # nenhum agente regride >15%
+
+  # Budget de tokens do outer loop (LLM propondo mutações)
+  outer_llm:
+    model: "claude-opus-4-5"             # melhor modelo para propor mutações
+    max_tokens_per_proposal: 4000
+    system_prompt_file: "autoresearch.md"
+
+# ─────────────────────────────────────────────
+# PRINCÍPIOS INEGOCIÁVEIS (verificados pelo runner antes de qualquer mutação)
+# ─────────────────────────────────────────────
+ethical_guardrails:
+  - "Nenhuma mutação pode inserir dark patterns, manipulação ou deception"
+  - "Nenhuma mutação pode remover os princípios éticos do agente"
+  - "Nenhuma mutação pode alterar os arquivos imutáveis listados acima"
+  - "Nenhuma mutação pode aumentar o orçamento de anúncios além do aprovado"
+  - "Mutações que pioram LTV ou NPS são tratadas como guard violations"
+  - "O runner deve logar o diff completo de cada mutação antes de aplicar"
