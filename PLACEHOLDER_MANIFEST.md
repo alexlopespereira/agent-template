@@ -22,6 +22,7 @@
 | `{{ USER_HOME }}` | path | calculated | — | computed as $HOME at install time |
 | `{{ ANTHROPIC_API_KEY }}` | secret | yes | — | "Enter your ANTHROPIC_API_KEY (sk-ant-...):" |
 | `{{ OPENAI_API_KEY }}` | secret | yes | — | "Enter your OPENAI_API_KEY (sk-...):" |
+| `{{ GEMINI_API_KEY }}` | secret | yes | — | "Enter your GEMINI_API_KEY (from aistudio.google.com):" |
 | `{{ EXA_API_KEY }}` | secret | no | "" | "Enter your EXA_API_KEY (leave empty to skip):" |
 | `{{ SKILL_PREFIX }}` | string | yes | AGENT_NAME | "Skill prefix for slash commands? (e.g., 'aeita' → /aeita-heartbeat) [Enter to use AGENT_NAME]:" |
 | `{{ TOOL_PREFIX }}` | string | yes | "edge" | "Tool prefix for CLI tools? (e.g., 'edge' → edge-fontes) [Enter for 'edge']:" |
@@ -61,6 +62,7 @@
 ### Group 3 — APIs and Credentials
 - ANTHROPIC_API_KEY
 - OPENAI_API_KEY
+- GEMINI_API_KEY (for deep research + adversarial validation)
 - EXA_API_KEY (optional)
 
 ### Group 4 — Heartbeat
@@ -93,6 +95,7 @@
 ```
 ANTHROPIC_API_KEY  → must start with "sk-ant-"
 OPENAI_API_KEY     → must start with "sk-"
+GEMINI_API_KEY     → must start with "AIza"
 EXA_API_KEY        → if provided, non-empty string
 KB_PATH (local)    → must exist: test -d "$KB_PATH" || test -f "$KB_PATH"
 KB_PATH (git)      → must be valid git URL: git ls-remote "$KB_PATH" 2>/dev/null
@@ -144,4 +147,5 @@ Windows → Task Scheduler (New-ScheduledTask via PS1)
 | `BLOG_AUTH_PASS` | (runtime only — secrets/keys.env) |
 | `ANTHROPIC_API_KEY` | (runtime only — secrets/keys.env) |
 | `OPENAI_API_KEY` | (runtime only — secrets/keys.env) |
+| `GEMINI_API_KEY` | (runtime only — secrets/keys.env) |
 | `EXA_API_KEY` | (runtime only — secrets/keys.env) |
