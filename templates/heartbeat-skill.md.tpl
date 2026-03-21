@@ -67,17 +67,32 @@ Quando este skill é invocado, execute o seguinte ciclo:
      ```
    - Só considere dados como validados se convergiu (agreement >= 8/10)
    - Se não convergiu, documente as divergências como caveats na hipótese
-5. **Se a hipótese requer desenvolvimento de feature (código)** com mais de 3 arquivos ou múltiplas etapas:
-   - Use Ralph para implementar:
-     ```bash
-     # 1. Criar PRD via skill /prd
-     # 2. Converter para prd.json via skill /ralph
-     # 3. Executar loop autônomo
-     tools/ralph/ralph.sh --tool claude 10
-     ```
+5. **Antes de executar, classifique a complexidade da ação** usando estes critérios:
+
+   **Faça DIRETO (sem Ralph)** se TODOS forem verdade:
+   - Envolve ≤ 3 arquivos
+   - Não tem dependências entre etapas (pode fazer tudo em sequência linear)
+   - Cabe em um único context window sem risco de perder contexto
+   - Exemplos: criar/editar LP, escrever copy, ajustar config, criar template de email, pesquisa de mercado, criar post de blog
+
+   **Use RALPH** se QUALQUER um for verdade:
+   - Envolve > 3 arquivos com lógica interdependente
+   - Requer backend + frontend + testes (múltiplas camadas)
+   - A implementação tem etapas que dependem das anteriores (ex: schema → API → UI)
+   - O risco de perder contexto no meio da implementação é alto
+   - Exemplos: criar agente de negociação (buyer/seller + protocolo + email + testes), implementar MVP de API (FastAPI + models + endpoints + frontend), construir pipeline de dados (ingest + transform + serve)
+
+   Se decidir usar Ralph:
+   ```bash
+   # 1. Criar PRD via skill /prd
+   # 2. Converter para prd.json via skill /ralph
+   # 3. Executar loop autônomo
+   tools/ralph/ralph.sh --tool claude 10
+   ```
    - Ralph executa cada user story em iterações independentes com contexto limpo
    - Acompanhe progresso em `tools/ralph/progress.txt`
    - Registre o resultado final no experiments.log
+
 6. Documente o resultado
 
 ### Passo 3 — Registro
@@ -118,3 +133,40 @@ Quando este skill é invocado, execute o seguinte ciclo:
 - A ação é operacional (deploy, config, criar LP) — não precisa de pesquisa externa
 - O ciclo já consumiu > 200k tokens da janela de contexto (reservar contexto para o resto do heartbeat)
 - A pergunta pode ser respondida com `edge-fontes` (busca rápida sem LLM)
+
+## Quando usar Ralph no heartbeat
+
+### Checklist de decisão (avaliar no Passo 2)
+
+```
+A ação envolve ESCREVER CÓDIGO?
+  └─ NÃO → faça direto (copy, pesquisa, config, deploy, template)
+  └─ SIM → Quantos arquivos com lógica interdependente?
+              └─ ≤ 3 → faça direto
+              └─ > 3 → A implementação tem camadas dependentes? (schema→API→UI)
+                          └─ NÃO → faça direto
+                          └─ SIM → USE RALPH
+```
+
+### Exemplos concretos
+
+| Ação | Ralph? | Por quê |
+|------|--------|---------|
+| Criar LP HTML + CSS | Não | 1-2 arquivos, sem dependências |
+| Escrever email sequence (markdown) | Não | Templates de texto, sem código |
+| Ajustar DNS, deploy Netlify | Não | Config operacional |
+| Criar agente de negociação (protocol + buyer + seller + email) | **Sim** | 4+ arquivos, lógica interdependente |
+| Implementar API FastAPI (models + routes + frontend + tests) | **Sim** | Múltiplas camadas dependentes |
+| Construir sistema de cobrança (PIX + email + tracking) | **Sim** | Backend + integração + notificação |
+| Adicionar um endpoint a uma API existente | Não | 1-2 arquivos, incremental |
+| Criar dashboard com gráficos + dados | **Sim** | Frontend + backend + data pipeline |
+
+### Fluxo Ralph dentro do heartbeat
+
+1. No Passo 2, ao identificar que a ação é Ralph-worthy:
+   - NÃO tente implementar direto — pare e crie o PRD
+2. Use `/prd` para gerar o PRD com user stories granulares
+3. Use `/ralph` para converter em `prd.json`
+4. Execute `tools/ralph/ralph.sh --tool claude 10`
+5. Após Ralph terminar, registre o resultado no experiments.log
+6. O heartbeat NÃO precisa implementar mais nada — Ralph já fez
