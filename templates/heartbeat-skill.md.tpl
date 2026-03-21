@@ -67,7 +67,18 @@ Quando este skill é invocado, execute o seguinte ciclo:
      ```
    - Só considere dados como validados se convergiu (agreement >= 8/10)
    - Se não convergiu, documente as divergências como caveats na hipótese
-5. Documente o resultado
+5. **Se a hipótese requer desenvolvimento de feature (código)** com mais de 3 arquivos ou múltiplas etapas:
+   - Use Ralph para implementar:
+     ```bash
+     # 1. Criar PRD via skill /prd
+     # 2. Converter para prd.json via skill /ralph
+     # 3. Executar loop autônomo
+     tools/ralph/ralph.sh --tool claude 10
+     ```
+   - Ralph executa cada user story em iterações independentes com contexto limpo
+   - Acompanhe progresso em `tools/ralph/progress.txt`
+   - Registre o resultado final no experiments.log
+6. Documente o resultado
 
 ### Passo 3 — Registro
 1. Registre o resultado em `experiments.log` como JSONL:

@@ -63,6 +63,7 @@ CLI tools in `{{ WORK_DIR }}/tools/`:
 - `{{ TOOL_PREFIX }}-state-lint` — State consistency linter
 - `{{ TOOL_PREFIX }}-state-audit` — State audit and snapshot
 - `consolidar-estado` — 8-phase publication pipeline (THE pipeline)
+- `ralph` — Autonomous agent loop for medium/high complexity features (see Ralph section below)
 
 ## Domain
 
@@ -120,6 +121,40 @@ Prompt:
 - Never evaluate own output — always submit to adversarial review via consult.
 - Never update CLAUDE.md directly from heartbeat. Only via reflection skill.
 - Never skip steps silently — use skill-step tracking.
+
+## Ralph — Autonomous Development Loop
+
+Para features de **média e alta complexidade**, use o Ralph (`{{ WORK_DIR }}/tools/ralph/ralph.sh`).
+
+Ralph é um loop autônomo que executa Claude Code repetidamente, com cada iteração tendo contexto limpo. A memória persiste via git history, `progress.txt` e `prd.json`. Cada iteração implementa UMA user story do PRD.
+
+### Quando usar Ralph
+
+| Complexidade | Exemplo | Usar Ralph? |
+|-------------|---------|-------------|
+| Baixa | Ajustar copy da LP, adicionar campo ao formulário | Não — faça direto |
+| **Média** | Criar agente de negociação, integrar API de pagamento, implementar fluxo de email | **Sim** |
+| **Alta** | Construir MVP completo do serviço, implementar pipeline de dados, criar sistema multi-agente | **Sim** |
+
+### Fluxo de uso
+
+1. **Criar PRD:** Use `/prd` para gerar o PRD da feature, ou escreva manualmente
+2. **Converter para prd.json:** Use `/ralph` para converter o PRD em formato Ralph
+3. **Executar:** `{{ WORK_DIR }}/tools/ralph/ralph.sh --tool claude 10`
+4. **Acompanhar:** Progresso em `{{ WORK_DIR }}/tools/ralph/progress.txt`
+
+### Regras
+
+- **Priorize Ralph** para qualquer desenvolvimento que envolva mais de 3 arquivos ou múltiplas etapas dependentes
+- Cada user story deve ser completável em UMA iteração (um context window)
+- Ordem de stories: schema → backend → frontend → testes
+- Sempre inclua "Typecheck passes" nos acceptance criteria
+- O PRD e progress.txt ficam em `{{ WORK_DIR }}/tools/ralph/`
+
+### Skills disponíveis
+
+- `/prd` — Gerar PRD estruturado a partir de descrição de feature
+- `/ralph` — Converter PRD existente para prd.json
 
 ## Deep Research & Adversarial Validation
 
