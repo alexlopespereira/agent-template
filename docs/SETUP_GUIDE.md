@@ -11,7 +11,8 @@
 7. [Adding Tools](#adding-tools)
 8. [Skills](#skills)
 9. [Adversarial Review Setup](#adversarial-review-setup)
-10. [Troubleshooting](#troubleshooting)
+10. [Security Hardening](#security-hardening)
+11. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -248,6 +249,103 @@ Automatic LLM-as-judge pipeline before publication. 3 phases:
 3. Refiner applies feedback. 2 rounds.
 
 Cost: ~$0.02-0.05 per review.
+
+---
+
+## Security Hardening
+
+The installer runs `security_hardening()` automatically. You can also run checks manually at any time.
+
+### Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `scripts/harden.sh` | Audit and fix security issues |
+| `scripts/harden.sh --fix` | Auto-fix all fixable issues |
+| `scripts/harden.sh --check` | Read-only report |
+| `scripts/rotate_secrets.sh` | Interactive credential rotation guide |
+| `scripts/rotate_secrets.sh --status` | Show credential status and last rotation |
+
+### What the Hardening Covers
+
+**1. File permissions**
+All files containing secrets are set to `600` (owner read/write only). The `secrets/` directory is `700`.
+
+| File | Permission | Reason |
+|------|-----------|--------|
+| `secrets/_shared.yaml` | 600 | API keys for all LLMs and services |
+| `secrets/*.env` | 600 | Environment variable files with keys |
+| `experiments/*/secrets.yaml` | 600 | Per-experiment credentials |
+| `.install-answers.env` | 600 | Contains API keys from install |
+| `config/branding.yaml` | 600 | Blog auth credentials |
+| `~/.claude/settings.json` | 600 | Claude Code config |
+| `logs/secrets_audit.log` | 600 | Audit trail of secret access |
+
+**2. Secret leak prevention**
+- Pre-commit hook blocks commits containing API key patterns (`sk-ant-`, `ghp_`, etc.)
+- `.gitignore` covers all known secret file patterns
+- Scan of committable files for leaked credentials
+
+**3. HTTP logger suppression**
+Python SDK clients (OpenAI, Anthropic, httpx) log HTTP request URLs at DEBUG level, which can include API keys in headers. The hardening check verifies that HTTP loggers are suppressed to WARNING level.
+
+Add this to any Python file making API calls:
+```python
+import logging
+for _lib in ('httpx', 'httpcore', 'urllib3', 'requests'):
+    logging.getLogger(_lib).setLevel(logging.WARNING)
+```
+
+**4. Systemd service hardening**
+The service template includes:
+- `PrivateTmp=yes` — isolated /tmp per service invocation
+- `NoNewPrivileges=yes` — prevent privilege escalation
+- `ProtectSystem=strict` — read-only filesystem except explicit paths
+- `UMask=0077` — files created by the agent are owner-only
+
+**5. Runtime protection**
+- `umask 0077` set in `heartbeat.sh` — all files created during agent cycles are owner-only
+- Lock files use `mktemp` with restrictive permissions
+- API keys are swapped to `AGENT_*` prefixed vars before calling `claude`
+
+**6. Log sanitization**
+The hardening script checks systemd journal and local logs for leaked credentials and reports counts.
+
+### Credential Rotation
+
+Rotate credentials every 90 days or immediately after a suspected leak.
+
+```bash
+# See current status
+bash scripts/rotate_secrets.sh --status
+
+# Rotate all configured credentials (interactive)
+bash scripts/rotate_secrets.sh
+
+# Rotate a specific service
+bash scripts/rotate_secrets.sh --service anthropic
+```
+
+After rotation:
+1. Delete the **old** key in the service's dashboard
+2. Test the heartbeat: `bash heartbeat.sh`
+3. Clean old logs: `sudo journalctl --rotate && sudo journalctl --vacuum-time=1s`
+
+### Post-Install Security Checklist
+
+```bash
+# Run full security audit
+bash scripts/harden.sh
+
+# Verify no secrets in git history
+git log --all -p | grep -c 'sk-ant-' # should be 0
+
+# Verify SSH hardening (if remote server)
+grep 'PasswordAuthentication' /etc/ssh/sshd_config  # should be "no"
+
+# Verify systemd service has security directives
+systemctl --user cat agent-heartbeat.service | grep -E 'PrivateTmp|NoNewPrivileges'
+```
 
 ---
 
