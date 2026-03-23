@@ -9,6 +9,15 @@ set -uo pipefail
 TODAY=$(date +%Y-%m-%d)
 SIGNALS=()
 
+# 0. Human gate active?
+GATE_FILE="$AGENT_ROOT/state/human-gate.json"
+if [ -f "$GATE_FILE" ]; then
+  gate_status=$(python3 -c "import json; print(json.load(open('$GATE_FILE')).get('status',''))" 2>/dev/null)
+  if [ "$gate_status" = "waiting" ]; then
+    SIGNALS+=("GATE:aguardando feedback humano para proximo beat")
+  fi
+fi
+
 # --- Load branding config (phenotype) ---
 BRANDING_FILE="$HOME/edge/config/branding.yaml"
 if [ -f "$BRANDING_FILE" ]; then
