@@ -1021,6 +1021,112 @@ OS: $OS" 2>/dev/null || info "Nada a commitar."
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# SEÇÃO 8b — SECURITY HARDENING
+# ─────────────────────────────────────────────────────────────────────────────
+
+security_hardening() {
+  header "Security Hardening"
+
+  info "Aplicando boas praticas de seguranca..."
+  echo ""
+
+  # 1. Permissoes restritivas em todos os arquivos sensiveis
+  local sensitive_files=(
+    "$INSTALL_DIR/secrets/_shared.yaml"
+    "$INSTALL_DIR/secrets/keys.env"
+    "$INSTALL_DIR/.install-answers.env"
+  )
+  # Incluir secrets.yaml de experimentos
+  while IFS= read -r f; do
+    sensitive_files+=("$f")
+  done < <(find "$INSTALL_DIR/experiments" -name "secrets.yaml" -type f 2>/dev/null)
+  # Incluir todos os .env em secrets/
+  while IFS= read -r f; do
+    sensitive_files+=("$f")
+  done < <(find "$INSTALL_DIR/secrets" -name "*.env" -type f 2>/dev/null)
+
+  for f in "${sensitive_files[@]}"; do
+    if [[ -f "$f" ]]; then
+      chmod 600 "$f"
+    fi
+  done
+  [[ -d "$INSTALL_DIR/secrets" ]] && chmod 700 "$INSTALL_DIR/secrets"
+  success "Permissoes 600 em arquivos de credenciais, 700 em secrets/"
+
+  # 2. Umask no heartbeat
+  if [[ -f "$INSTALL_DIR/heartbeat.sh" ]]; then
+    if ! grep -q 'umask 0077' "$INSTALL_DIR/heartbeat.sh" 2>/dev/null; then
+      sed -i '/set -euo pipefail/a umask 0077  # Security: restringir permissoes de arquivos criados pelo agente' \
+        "$INSTALL_DIR/heartbeat.sh" 2>/dev/null || true
+      success "umask 0077 adicionado ao heartbeat.sh"
+    fi
+  fi
+
+  # 3. Pre-commit hook para detectar secrets
+  if [[ -d "$INSTALL_DIR/.git" ]]; then
+    local hook="$INSTALL_DIR/.git/hooks/pre-commit"
+    mkdir -p "$INSTALL_DIR/.git/hooks"
+    cat > "$hook" << 'HOOKEOF'
+#!/usr/bin/env bash
+# Pre-commit hook: bloqueia commit acidental de secrets
+PATTERNS='sk-ant-|sk-proj-|ANTHROPIC_API_KEY=.sk-|OPENAI_API_KEY=.sk-|xai-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{36}|github_pat_'
+
+if git diff --cached --diff-filter=ACMR -z --name-only | \
+   xargs -0 grep -lE "$PATTERNS" 2>/dev/null | \
+   grep -vE '^(secrets/|\.install-answers\.env|logs/)'; then
+  echo ""
+  echo "BLOQUEADO: Possivel secret detectado nos arquivos acima."
+  echo "Se for intencional, use: git commit --no-verify"
+  echo ""
+  exit 1
+fi
+HOOKEOF
+    chmod +x "$hook"
+    success "Pre-commit hook instalado (bloqueia commit de secrets)"
+  fi
+
+  # 4. Hardening de logs sensiveis
+  for logfile in "$INSTALL_DIR/logs/secrets_audit.log" "$INSTALL_DIR/logs/budget_spend.log"; do
+    if [[ -f "$logfile" ]]; then
+      chmod 600 "$logfile"
+    fi
+  done
+
+  # 5. Proteger branding.yaml se existir
+  for branding in "$INSTALL_DIR/config/branding.yaml" "$HOME/edge/config/branding.yaml"; do
+    if [[ -f "$branding" ]]; then
+      chmod 600 "$branding"
+      success "Permissao 600 em $(basename "$(dirname "$branding")")/branding.yaml"
+    fi
+  done
+
+  # 6. Proteger ~/.claude/settings.json
+  if [[ -f "$HOME/.claude/settings.json" ]]; then
+    chmod 600 "$HOME/.claude/settings.json"
+    success "Permissao 600 em ~/.claude/settings.json"
+  fi
+
+  # 7. Executar harden.sh completo se disponivel
+  local harden_script="$INSTALL_DIR/scripts/harden.sh"
+  if [[ -f "$harden_script" ]]; then
+    chmod +x "$harden_script"
+    echo ""
+    info "Executando verificacao completa de seguranca..."
+    bash "$harden_script" --fix 2>/dev/null || true
+  fi
+
+  echo ""
+  success "Security hardening concluido"
+  echo ""
+  info "Para verificar seguranca a qualquer momento:"
+  info "  bash scripts/harden.sh          # relatorio"
+  info "  bash scripts/harden.sh --fix    # corrigir automaticamente"
+  info ""
+  info "Para rotacionar credenciais:"
+  info "  bash scripts/rotate_secrets.sh"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # SEÇÃO 9 — VALIDAÇÃO E PRIMEIRO HEARTBEAT
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -1158,6 +1264,7 @@ main() {
   apply_templates
   setup_knowledge_base
   setup_secrets
+  security_hardening
   activate_heartbeat
   publish_to_github
   validate_and_first_run
