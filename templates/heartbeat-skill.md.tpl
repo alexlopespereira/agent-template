@@ -107,6 +107,58 @@ Quando este skill é invocado, execute o seguinte ciclo:
 1. Identifique o que fazer no próximo heartbeat
 2. Registre em `MEMORY.md` seção "Tasks in Progress"
 
+### Passo 5 — Relatório para o Humano (OBRIGATÓRIO)
+
+O próximo beat SÓ executa após feedback humano. Produza um relatório claro e acionável.
+
+1. **Montar resumo estruturado** com exatamente estas seções:
+   - **O que fiz:** 1-3 frases sobre o que foi executado neste beat
+   - **Estado atual:** métricas-chave, fase do negócio, progresso geral
+   - **Pendências (aprovação humana):** itens que dependem de decisão/ação do operador
+   - **Próximo beat (proposta):** 2-3 tarefas que o agente quer executar ou investigar
+
+2. **Salvar resumo** como `state/human-gate-summary.json`:
+   ```bash
+   python3 -c "
+   import json
+   from datetime import datetime, timezone
+   gate = {
+       'status': 'waiting',
+       'created_at': datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+       'summary': '''<RESUMO DO QUE FEZ>''',
+       'current_state': '''<ESTADO ATUAL>''',
+       'pending_approvals': [<LISTA DE PENDENCIAS>],
+       'proposed_next': [<LISTA DE PROPOSTAS>]
+   }
+   with open('state/human-gate-summary.json', 'w') as f:
+       json.dump(gate, f, indent=2, ensure_ascii=False)
+   "
+   ```
+
+3. **Enviar via Telegram** usando notify.sh:
+   ```bash
+   {{ WORK_DIR }}/tools/notify.sh "📋 *Beat Report*
+
+   *O que fiz:* <resumo>
+
+   *Estado:* <estado>
+
+   *Pendências:* <lista>
+
+   *Próximo beat:* <propostas>
+
+   Responda para aprovar/ajustar o próximo beat." --level info
+   ```
+
+4. **Postar no blog chat** para registro:
+   ```bash
+   curl -s -X POST http://localhost:{{ BLOG_PORT }}/api/chat \
+     -H "Content-Type: application/json" \
+     -d '{"from": "agent", "message": "<resumo formatado>"}'
+   ```
+
+**IMPORTANTE:** O heartbeat.sh criará o gate file automaticamente após este passo. O próximo beat só executará quando o operador humano responder via Telegram ou blog chat.
+
 ## Domínio
 {{ AGENT_DOMAIN }}
 

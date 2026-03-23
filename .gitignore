@@ -33,5 +33,8 @@ __pycache__/
 venv/
 .venv/
 
+# Node
+node_modules/
+
 # Reports gerados
 reports/*.html

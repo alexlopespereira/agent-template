@@ -33,6 +33,80 @@ if [ -d "$SECRETS_DIR" ]; then
   done
 fi
 
+# --- Human-in-the-loop gate ---
+GATE_FILE="{{ WORK_DIR }}/state/human-gate.json"
+GATE_LAST="{{ WORK_DIR }}/state/human-gate.last.json"
+mkdir -p "{{ WORK_DIR }}/state"
+
+# Load blog config for chat API
+BRANDING_FILE="$HOME/edge/config/branding.yaml"
+BLOG_PORT=8766
+BLOG_AUTH_USER=""
+BLOG_AUTH_PASS=""
+BLOG_AUTH_ENABLED=false
+if [ -f "$BRANDING_FILE" ]; then
+  BLOG_PORT=$(grep '^  port:' "$BRANDING_FILE" 2>/dev/null | head -1 | awk '{print $2}')
+  BLOG_AUTH_ENABLED=$(grep '^  auth_enabled:' "$BRANDING_FILE" 2>/dev/null | head -1 | awk '{print $2}')
+  BLOG_AUTH_USER=$(grep '^  auth_user:' "$BRANDING_FILE" 2>/dev/null | head -1 | awk '{print $2}' | tr -d '"')
+  BLOG_AUTH_PASS=$(grep '^  auth_pass:' "$BRANDING_FILE" 2>/dev/null | head -1 | awk '{print $2}' | tr -d '"')
+fi
+BLOG_PORT=${BLOG_PORT:-8766}
+
+CURL_BLOG_AUTH=""
+if [ "$BLOG_AUTH_ENABLED" = "true" ] && [ -n "$BLOG_AUTH_USER" ]; then
+  CURL_BLOG_AUTH="-u ${BLOG_AUTH_USER}:${BLOG_AUTH_PASS}"
+fi
+
+if [ -f "$GATE_FILE" ]; then
+  GATE_STATUS=$(python3 -c "
+import json, sys
+try:
+    g = json.load(open('$GATE_FILE'))
+    print(g.get('status', ''))
+except: print('')
+" 2>/dev/null)
+
+  if [ "$GATE_STATUS" = "waiting" ]; then
+    # Check blog chat for human feedback after gate creation
+    GATE_TS=$(python3 -c "
+import json; print(json.load(open('$GATE_FILE')).get('created_at', ''))
+" 2>/dev/null)
+
+    HAS_FEEDBACK=$(GATE_TS="$GATE_TS" BLOG_PORT="$BLOG_PORT" \
+      BLOG_AUTH_USER="$BLOG_AUTH_USER" BLOG_AUTH_PASS="$BLOG_AUTH_PASS" \
+      BLOG_AUTH_ENABLED="$BLOG_AUTH_ENABLED" \
+      python3 -c "
+import json, os, urllib.request
+try:
+    port = os.environ.get('BLOG_PORT', '8766')
+    url = f'http://localhost:{port}/api/chat'
+    req = urllib.request.Request(url)
+    if os.environ.get('BLOG_AUTH_ENABLED') == 'true' and os.environ.get('BLOG_AUTH_USER'):
+        import base64
+        creds = base64.b64encode(f\"{os.environ['BLOG_AUTH_USER']}:{os.environ.get('BLOG_AUTH_PASS','')}\".encode()).decode()
+        req.add_header('Authorization', 'Basic ' + creds)
+    data = json.loads(urllib.request.urlopen(req, timeout=3).read())
+    gate_ts = os.environ.get('GATE_TS', '')
+    feedback = [m for m in data if m.get('from', '') != 'agent' and m.get('timestamp', '') > gate_ts and not m.get('read')]
+    print('yes' if feedback else 'no')
+except:
+    print('no')
+" 2>/dev/null)
+
+    if [ "$HAS_FEEDBACK" = "yes" ]; then
+      echo "  Gate: human feedback received — proceeding" >> "$LOG"
+      mv "$GATE_FILE" "$GATE_LAST"
+    else
+      echo "  Gate: waiting for human feedback — skipping beat" >> "$LOG"
+      echo "--- skipped $(date -Iseconds) (waiting for human feedback) ---" >> "$LOG"
+      exit 0
+    fi
+  else
+    # Gate exists but not in waiting state — clear it
+    mv "$GATE_FILE" "$GATE_LAST"
+  fi
+fi
+
 # Run preflight (zero tokens — bash only)
 if [ -f "{{ WORK_DIR }}/tools/heartbeat-preflight.sh" ]; then
   PREFLIGHT=$(bash "{{ WORK_DIR }}/tools/heartbeat-preflight.sh" 2>/dev/null || echo "PREFLIGHT_WORK")
@@ -54,6 +128,29 @@ if claude -p "/{{ SKILL_PREFIX }}-heartbeat" --model claude-sonnet-4-6 \
 else
   echo "--- failed $(date -Iseconds) (exit code $?) ---" >> "$LOG"
 fi
+
+# --- Create human gate after beat ---
+# The heartbeat skill writes the summary to state/human-gate-summary.json
+# We merge it into the gate file, or create a minimal gate if no summary exists
+SUMMARY_FILE="{{ WORK_DIR }}/state/human-gate-summary.json"
+if [ -f "$SUMMARY_FILE" ]; then
+  mv "$SUMMARY_FILE" "$GATE_FILE"
+else
+  python3 -c "
+import json
+from datetime import datetime, timezone
+gate = {
+    'status': 'waiting',
+    'created_at': datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+    'summary': 'Beat completed (no structured summary available)',
+    'pending_approvals': [],
+    'proposed_next': []
+}
+with open('$GATE_FILE', 'w') as f:
+    json.dump(gate, f, indent=2, ensure_ascii=False)
+" 2>/dev/null
+fi
+echo "  Gate: created — waiting for human feedback" >> "$LOG"
 
 # Cleanup guardrail session state
 rm -f /tmp/guardrail-session-*.json /tmp/guardrail-approval-* 2>/dev/null || true
