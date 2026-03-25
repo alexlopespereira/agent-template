@@ -349,18 +349,30 @@ collect_answers() {
   header "3 / 6  ·  APIs e Credenciais"
 
   info "As chaves serão salvas em secrets/keys.env (gitignored)."
+  info "Deixe vazio para pular — você pode configurar depois em secrets/keys.env."
   echo ""
 
   prompt_secret ANTHROPIC_API_KEY \
-    "ANTHROPIC_API_KEY (sk-ant-...):"
-  [[ "$ANTHROPIC_API_KEY" =~ ^sk-ant- ]] || \
-    error "API key inválida. Deve começar com 'sk-ant-'."
+    "ANTHROPIC_API_KEY (sk-ant-..., Enter para pular):"
+  if [[ -n "$ANTHROPIC_API_KEY" ]]; then
+    [[ "$ANTHROPIC_API_KEY" =~ ^sk-ant- ]] || \
+      warn "API key não parece válida (esperado sk-ant-...). Continuando mesmo assim."
+    success "ANTHROPIC_API_KEY configurada."
+  else
+    warn "ANTHROPIC_API_KEY não configurada — o agente não funcionará sem ela."
+    info "Configure depois em: secrets/keys.env"
+  fi
 
   echo ""
   prompt_secret OPENAI_API_KEY \
-    "OPENAI_API_KEY (sk-...) — usada para edge-consult/review-gate:"
-  [[ "$OPENAI_API_KEY" =~ ^sk- ]] || \
-    error "API key inválida. Deve começar com 'sk-'."
+    "OPENAI_API_KEY (sk-..., Enter para pular):"
+  if [[ -n "$OPENAI_API_KEY" ]]; then
+    [[ "$OPENAI_API_KEY" =~ ^sk- ]] || \
+      warn "API key não parece válida (esperado sk-...). Continuando mesmo assim."
+    success "OPENAI_API_KEY configurada."
+  else
+    info "OPENAI_API_KEY não configurada — funcionalidades edge-consult/review-gate desabilitadas."
+  fi
 
   echo ""
   ask "EXA_API_KEY (deixe vazio para pular):"
@@ -1261,14 +1273,19 @@ validate_and_first_run() {
   fi
 
   # Testar ANTHROPIC_API_KEY
-  info "Testando conexão com Anthropic API..."
-  local test_result
-  test_result=$(ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" claude -p "respond only: ok" \
-    --output-format text 2>/dev/null || echo "FAILED")
-  if [[ "$test_result" == *"ok"* ]] || [[ "$test_result" == *"OK"* ]] || [[ "$test_result" == *"Ok"* ]]; then
-    success "Conexão Anthropic: OK"
+  if [[ -n "$ANTHROPIC_API_KEY" ]]; then
+    info "Testando conexão com Anthropic API..."
+    local test_result
+    test_result=$(ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" claude -p "respond only: ok" \
+      --output-format text 2>/dev/null || echo "FAILED")
+    if [[ "$test_result" == *"ok"* ]] || [[ "$test_result" == *"OK"* ]] || [[ "$test_result" == *"Ok"* ]]; then
+      success "Conexão Anthropic: OK"
+    else
+      warn "Teste de conexão Anthropic falhou. Verifique ANTHROPIC_API_KEY."
+      ok=false
+    fi
   else
-    warn "Teste de conexão Anthropic falhou. Verifique ANTHROPIC_API_KEY."
+    warn "ANTHROPIC_API_KEY não configurada — teste de conexão pulado."
     ok=false
   fi
 
