@@ -47,13 +47,48 @@ prompt_with_default() {
   printf -v "$var_name" '%s' "$value"
 }
 
-# Lê secret (sem echo)
+# Lê secret (mostra * por caractere para feedback visual)
 prompt_secret() {
   local var_name="$1" prompt="$2"
   ask "$prompt"
-  read -r -s -p "    › " value
+  printf "    › "
+  local value="" char
+  while IFS= read -r -s -n1 char; do
+    # Enter → fim
+    [[ -z "$char" ]] && break
+    # Backspace/Delete
+    if [[ "$char" == $'\x7f' ]] || [[ "$char" == $'\b' ]]; then
+      if [[ -n "$value" ]]; then
+        value="${value%?}"
+        printf '\b \b'
+      fi
+    else
+      value+="$char"
+      printf '*'
+    fi
+  done
   echo ""
   printf -v "$var_name" '%s' "$value"
+}
+
+# Lê secret inline (retorna via stdout, mostra * por caractere)
+read_secret() {
+  local value="" char
+  printf "    › "
+  while IFS= read -r -s -n1 char; do
+    [[ -z "$char" ]] && break
+    if [[ "$char" == $'\x7f' ]] || [[ "$char" == $'\b' ]]; then
+      if [[ -n "$value" ]]; then
+        value="${value%?}"
+        printf '\b \b'
+      fi
+    else
+      value+="$char"
+      printf '*'
+    fi
+  done
+  echo ""
+  printf '%s' "$value"
 }
 
 # Lê texto longo via $EDITOR
@@ -367,8 +402,7 @@ collect_answers() {
 
   echo ""
   ask "EXA_API_KEY (deixe vazio para pular):"
-  read -r -s -p "    › " EXA_API_KEY
-  echo ""
+  EXA_API_KEY=$(read_secret)
   if [[ -n "$EXA_API_KEY" ]]; then
     success "EXA_API_KEY configurada."
   else
@@ -759,17 +793,17 @@ setup_secrets() {
 
   echo ""
   ask "OPENAI_API_KEY (sk-... — deixe vazio para pular):"
-  read -r -s -p "    › " OPENAI_API_KEY; echo ""
+  OPENAI_API_KEY=$(read_secret)
   export OPENAI_API_KEY
 
   echo ""
   ask "XAI_API_KEY (xai-... — Grok, para adversarial review — deixe vazio para pular):"
-  read -r -s -p "    › " XAI_API_KEY; echo ""
+  XAI_API_KEY=$(read_secret)
   export XAI_API_KEY
 
   echo ""
   ask "GOOGLE_API_KEY (AIza... — Gemini — deixe vazio para pular):"
-  read -r -s -p "    › " GOOGLE_API_KEY; echo ""
+  GOOGLE_API_KEY=$(read_secret)
   export GOOGLE_API_KEY
 
   # ── Grupo B: Busca ──────────────────────────────────────────────────────────
@@ -777,7 +811,7 @@ setup_secrets() {
 
   if [[ -z "${EXA_API_KEY:-}" ]]; then
     ask "EXA_API_KEY (exa-... — deixe vazio para pular):"
-    read -r -s -p "    › " EXA_API_KEY; echo ""
+    EXA_API_KEY=$(read_secret)
   else
     echo -e "  ${YELLOW}EXA_API_KEY já configurada (coletada anteriormente).${RESET}"
   fi
@@ -785,7 +819,7 @@ setup_secrets() {
 
   echo ""
   ask "SERPER_API_KEY (serper.dev — deixe vazio para pular):"
-  read -r -s -p "    › " SERPER_API_KEY; echo ""
+  SERPER_API_KEY=$(read_secret)
   export SERPER_API_KEY
 
   # ── Grupo C: Infraestrutura ─────────────────────────────────────────────────
@@ -794,12 +828,12 @@ setup_secrets() {
   echo -e "  O agente pode precisar de um GitHub PAT para criar PRs, issues e push autônomo."
   echo ""
   ask "GITHUB_PAT (github_pat_... ou ghp_... — deixe vazio para pular):"
-  read -r -s -p "    › " GITHUB_PAT; echo ""
+  GITHUB_PAT=$(read_secret)
   export GITHUB_PAT
 
   echo ""
   ask "CLOUDFLARE_API_TOKEN (deixe vazio para pular):"
-  read -r -s -p "    › " CLOUDFLARE_API_TOKEN; echo ""
+  CLOUDFLARE_API_TOKEN=$(read_secret)
   ask "CLOUDFLARE_ACCOUNT_ID (deixe vazio para pular):"
   read -r -p "    › " CLOUDFLARE_ACCOUNT_ID
   export CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID
@@ -809,7 +843,7 @@ setup_secrets() {
   echo -e "  Configure para receber notificações do agente no Telegram ou Slack.\n"
 
   ask "TELEGRAM_BOT_TOKEN (deixe vazio para pular):"
-  read -r -s -p "    › " TELEGRAM_BOT_TOKEN; echo ""
+  TELEGRAM_BOT_TOKEN=$(read_secret)
 
   TELEGRAM_CHAT_ID=""
   if [[ -n "$TELEGRAM_BOT_TOKEN" ]]; then
@@ -1239,8 +1273,10 @@ validate_and_first_run() {
     local file="$INSTALL_DIR/$f"
     [[ -f "$file" ]] || continue
     local count
-    count=$(grep -c '{{ ' "$file" 2>/dev/null || echo 0)
-    residual=$((residual + count))
+    count=$(grep -c '{{ ' "$file" 2>/dev/null || true)
+    count="${count:-0}"
+    count="${count//[^0-9]/}"
+    residual=$((residual + ${count:-0}))
   done
   if [[ $residual -eq 0 ]]; then
     success "Sem placeholders residuais nos arquivos principais"
