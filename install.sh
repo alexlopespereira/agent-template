@@ -155,30 +155,101 @@ clone_or_use_local() {
     INSTALL_DIR="$(cd . && pwd)"
     info "Usando repositório local: $INSTALL_DIR"
   else
-    header "Clonando repositório template"
+    header "Destino da instalação"
 
-    local repo_dir_name
-    prompt_with_default repo_dir_name \
-      "Nome do diretório de instalação:" \
-      "meu-agente"
+    prompt_choice install_mode "Onde instalar o agente?" \
+      "Criar novo repositório (clone do template)" \
+      "Instalar em um repositório local existente"
 
-    INSTALL_DIR="$(pwd)/$repo_dir_name"
+    if [[ "$install_mode" == *"existente"* ]]; then
+      # ── Instalar em repo existente ──────────────────────────────────────
+      local target_dir
+      prompt_with_default target_dir \
+        "Caminho absoluto do repositório existente:" \
+        ""
+      [[ -z "$target_dir" ]] && error "Caminho não pode ser vazio."
+      target_dir="${target_dir%/}"  # remove trailing slash
 
-    if [[ -n "$GITHUB_USER" ]] && gh auth status &>/dev/null 2>&1; then
-      info "Criando repositório no GitHub via template..."
-      gh repo create "$repo_dir_name" \
-        --template "$TEMPLATE_REPO" \
-        --private \
-        --clone \
-        --description "Agente autônomo baseado em Claude Code"
-      INSTALL_DIR="$(pwd)/$repo_dir_name"
+      # Expandir ~ se presente
+      target_dir="${target_dir/#\~/$HOME}"
+
+      [[ -d "$target_dir" ]] || error "Diretório não encontrado: $target_dir"
+
+      INSTALL_DIR="$target_dir"
+      info "Destino: $INSTALL_DIR"
+
+      # Detectar localização do template (onde está este install.sh)
+      local template_dir
+      template_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+      if [[ ! -f "$template_dir/PLACEHOLDER_MANIFEST.md" ]]; then
+        error "Não foi possível localizar o diretório do template em: $template_dir"
+      fi
+
+      info "Copiando arquivos do template para o repositório existente..."
+
+      # Copiar estrutura do template, sem sobrescrever .git e preservando
+      # arquivos que já existem no destino (com opção de merge)
+      local items_to_copy=(
+        templates config scripts tools docs blog memory systemd secrets tasks
+        .claude models.env.example .env.example
+        PLACEHOLDER_MANIFEST.md ANALYZE_ARTIFACTS.md REPLICATION_BLUEPRINT.md
+        PROMPT_D_PREINSTALL.md autoresearch_config.yaml autoresearch.md
+      )
+
+      local copied=0 skipped=0
+      for item in "${items_to_copy[@]}"; do
+        local src="$template_dir/$item"
+        [[ -e "$src" ]] || continue
+
+        if [[ -d "$src" ]]; then
+          # Diretórios: copiar conteúdo recursivamente sem sobrescrever
+          # rsync -a --ignore-existing preserva arquivos existentes
+          if command -v rsync &>/dev/null; then
+            rsync -a --ignore-existing "$src/" "$INSTALL_DIR/$item/"
+          else
+            cp -rn "$src" "$INSTALL_DIR/$item" 2>/dev/null || \
+              cp -r "$src" "$INSTALL_DIR/$item"
+          fi
+          ((copied++))
+        else
+          # Arquivos: copiar apenas se não existir no destino
+          if [[ ! -f "$INSTALL_DIR/$item" ]]; then
+            cp "$src" "$INSTALL_DIR/$item"
+            ((copied++))
+          else
+            ((skipped++))
+          fi
+        fi
+      done
+
+      success "$copied itens copiados, $skipped já existentes (preservados)"
+
     else
-      info "Clonando template diretamente..."
-      git clone "https://github.com/$TEMPLATE_REPO.git" "$INSTALL_DIR"
-    fi
+      # ── Criar novo repositório (comportamento original) ─────────────────
+      local repo_dir_name
+      prompt_with_default repo_dir_name \
+        "Nome do diretório de instalação:" \
+        "meu-agente"
 
-    cd "$INSTALL_DIR"
-    success "Repositório em: $INSTALL_DIR"
+      INSTALL_DIR="$(pwd)/$repo_dir_name"
+
+      if [[ -n "$GITHUB_USER" ]] && gh auth status &>/dev/null 2>&1; then
+        info "Criando repositório no GitHub via template..."
+        gh repo create "$repo_dir_name" \
+          --template "$TEMPLATE_REPO" \
+          --private \
+          --clone \
+          --description "Agente autônomo baseado em Claude Code"
+        INSTALL_DIR="$(pwd)/$repo_dir_name"
+      else
+        info "Clonando template diretamente..."
+        git clone "https://github.com/$TEMPLATE_REPO.git" "$INSTALL_DIR"
+      fi
+
+      cd "$INSTALL_DIR"
+      success "Repositório em: $INSTALL_DIR"
+    fi
   fi
 
   ANSWERS_FILE="$INSTALL_DIR/.install-answers.env"
@@ -941,8 +1012,9 @@ publish_to_github() {
     return 0
   fi
 
-  # Garantir .gitignore seguro
-  cat > "$INSTALL_DIR/.gitignore" << 'GIEOF'
+  # Garantir .gitignore seguro (merge se já existir)
+  local gitignore_entries
+  read -r -d '' gitignore_entries << 'GIEOF' || true
 # Secrets e configurações locais — NUNCA commitar
 .install-answers.env
 .env
@@ -979,6 +1051,18 @@ venv/
 # Reports gerados
 reports/*.html
 GIEOF
+
+  if [[ -f "$INSTALL_DIR/.gitignore" ]]; then
+    # Merge: adicionar apenas linhas que ainda não existem
+    while IFS= read -r line; do
+      [[ -z "$line" ]] && continue
+      grep -qxF "$line" "$INSTALL_DIR/.gitignore" 2>/dev/null || \
+        echo "$line" >> "$INSTALL_DIR/.gitignore"
+    done <<< "$gitignore_entries"
+    info ".gitignore existente atualizado (merge)"
+  else
+    echo "$gitignore_entries" > "$INSTALL_DIR/.gitignore"
+  fi
 
   # Inicializar git se necessário
   if [[ ! -d "$INSTALL_DIR/.git" ]]; then
