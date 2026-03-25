@@ -350,20 +350,11 @@ collect_answers() {
 
   info "As chaves serão salvas em secrets/keys.env (gitignored)."
   info "Deixe vazio para pular — você pode configurar depois em secrets/keys.env."
+  info "ANTHROPIC_API_KEY não é solicitada — o agente usa a autenticação do Claude Code CLI."
   echo ""
 
-  prompt_secret ANTHROPIC_API_KEY \
-    "ANTHROPIC_API_KEY (sk-ant-..., Enter para pular):"
-  if [[ -n "$ANTHROPIC_API_KEY" ]]; then
-    [[ "$ANTHROPIC_API_KEY" =~ ^sk-ant- ]] || \
-      warn "API key não parece válida (esperado sk-ant-...). Continuando mesmo assim."
-    success "ANTHROPIC_API_KEY configurada."
-  else
-    warn "ANTHROPIC_API_KEY não configurada — o agente não funcionará sem ela."
-    info "Configure depois em: secrets/keys.env"
-  fi
+  ANTHROPIC_API_KEY=""
 
-  echo ""
   prompt_secret OPENAI_API_KEY \
     "OPENAI_API_KEY (sk-..., Enter para pular):"
   if [[ -n "$OPENAI_API_KEY" ]]; then
@@ -760,9 +751,10 @@ setup_secrets() {
 
   # ── Grupo A: Credenciais de LLM ────────────────────────────────────────────
   header "Credenciais — LLMs"
-  echo -e "  ${YELLOW}ANTHROPIC_API_KEY já configurada (coletada anteriormente).${RESET}"
+  echo -e "  ${YELLOW}ANTHROPIC_API_KEY não é necessária — o agente usa o login do Claude Code CLI.${RESET}"
   echo -e "  As demais são opcionais — deixe vazio para pular.\n"
 
+  ANTHROPIC_API_KEY=""
   export ANTHROPIC_API_KEY
 
   echo ""
@@ -1272,20 +1264,15 @@ validate_and_first_run() {
     success "Nenhum secret detectado em arquivos commitáveis"
   fi
 
-  # Testar ANTHROPIC_API_KEY
-  if [[ -n "$ANTHROPIC_API_KEY" ]]; then
-    info "Testando conexão com Anthropic API..."
-    local test_result
-    test_result=$(ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" claude -p "respond only: ok" \
-      --output-format text 2>/dev/null || echo "FAILED")
-    if [[ "$test_result" == *"ok"* ]] || [[ "$test_result" == *"OK"* ]] || [[ "$test_result" == *"Ok"* ]]; then
-      success "Conexão Anthropic: OK"
-    else
-      warn "Teste de conexão Anthropic falhou. Verifique ANTHROPIC_API_KEY."
-      ok=false
-    fi
+  # Testar Claude Code CLI (usa autenticação da conta logada)
+  info "Testando conexão com Claude Code CLI..."
+  local test_result
+  test_result=$(claude -p "respond only: ok" \
+    --output-format text 2>/dev/null || echo "FAILED")
+  if [[ "$test_result" == *"ok"* ]] || [[ "$test_result" == *"OK"* ]] || [[ "$test_result" == *"Ok"* ]]; then
+    success "Claude Code CLI: OK"
   else
-    warn "ANTHROPIC_API_KEY não configurada — teste de conexão pulado."
+    warn "Teste de conexão Claude Code falhou. Verifique que 'claude' está logado."
     ok=false
   fi
 
