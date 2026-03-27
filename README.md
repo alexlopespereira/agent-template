@@ -207,6 +207,7 @@ Pipeline de publicação atômica de 8 fases: snapshot de estado, revisão adver
 | `curadoria_compute.py` | Motor de curadoria e scoring de corpus |
 | `feedback.sh` | Coleta de feedback humano via blog chat |
 | `ledger_rollup.py` | Agregação de ledger em ops-hotspots.json |
+| `playwright-auth.sh` | Autenticação delegada para browser automation (salva sessão para reutilização) |
 
 #### Ralph — Loop de Desenvolvimento Autônomo
 

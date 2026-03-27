@@ -122,6 +122,34 @@ Prompt:
 - Never update CLAUDE.md directly from heartbeat. Only via reflection skill.
 - Never skip steps silently — use skill-step tracking.
 
+## Playwright — Browser Automation
+
+Para tarefas que envolvem interfaces web administrativas (Shopify Admin, Salesforce, registro.br, Netlify, etc.),
+use Playwright em vez de delegar ao humano.
+
+### Protocolo de autenticação delegada
+
+1. **Verificar sessão existente:** `secrets/playwright-state/<service>.json`
+2. **Se não existe:** solicitar ao humano que autentique executando:
+   ```
+   ! bash {{ WORK_DIR }}/tools/playwright-auth.sh <service> <url>
+   ```
+3. **Após autenticação:** usar Playwright MCP server com a sessão salva para operar autonomamente
+4. **Se sessão expirar:** re-solicitar autenticação ao humano
+
+### Serviços suportados
+
+| Serviço | Comando de autenticação |
+|---------|------------------------|
+| Shopify Admin | `bash tools/playwright-auth.sh shopify "https://admin.shopify.com"` |
+| Salesforce | `bash tools/playwright-auth.sh salesforce "https://login.salesforce.com"` |
+| registro.br | `bash tools/playwright-auth.sh registrobr "https://registro.br"` |
+| Netlify | `bash tools/playwright-auth.sh netlify "https://app.netlify.com"` |
+| Google Cloud | `bash tools/playwright-auth.sh gcloud "https://console.cloud.google.com"` |
+
+O agente deve **sempre tentar automatizar via Playwright** antes de pedir ao humano para executar manualmente.
+Se a sessão não existe, peça ao humano para autenticar UMA vez — depois opere autonomamente.
+
 ## Ralph — Autonomous Development Loop
 
 Para features de **média e alta complexidade**, use o Ralph (`{{ WORK_DIR }}/tools/ralph/ralph.sh`).
