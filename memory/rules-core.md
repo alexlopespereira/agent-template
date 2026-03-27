@@ -25,6 +25,7 @@ Loaded automatically every session. Two sections:
 ### Recognition
 
 7. When seeking knowledge: **internal sources before external**. The agent's own corpus is the primary source — if already researched, apply, don't re-derive.
+8. When a task involves a web admin interface (Shopify, Salesforce, Netlify, etc.): **use Playwright, not manual delegation**. Check `secrets/playwright-state/<service>.json` for existing session; if absent, ask the human to run `tools/playwright-auth.sh <service> <url>` once, then operate autonomously.
 
 ### Decision
 
