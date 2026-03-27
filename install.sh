@@ -1021,6 +1021,85 @@ PYEOF
 # SEÇÃO 7 — ATIVAR HEARTBEAT
 # ─────────────────────────────────────────────────────────────────────────────
 
+activate_blog_server() {
+  header "Ativando blog server"
+
+  # Criar venv e instalar dependências
+  local blog_dir="$INSTALL_DIR/blog"
+  if [[ ! -f "$blog_dir/server.py" ]]; then
+    warn "blog/server.py não encontrado. Pulando ativação do blog server."
+    return 0
+  fi
+
+  info "Criando venv e instalando dependências do blog..."
+  python3 -m venv "$blog_dir/.venv" 2>/dev/null || {
+    warn "Falha ao criar venv para o blog. Pulando."
+    return 0
+  }
+  "$blog_dir/.venv/bin/pip" install --quiet flask markdown pyyaml 2>/dev/null
+  success "Dependências do blog instaladas"
+
+  case "$OS" in
+    linux)
+      local service_dir="$HOME/.config/systemd/user"
+      mkdir -p "$service_dir"
+
+      if [[ -f "$INSTALL_DIR/systemd/blog-server.service" ]]; then
+        cp "$INSTALL_DIR/systemd/blog-server.service" "$service_dir/"
+        systemctl --user daemon-reload
+        systemctl --user enable --now blog-server.service
+        success "Blog server ativo via systemd (reinicia automaticamente)"
+        info "Status: systemctl --user status blog-server.service"
+        info "URL: http://localhost:${BLOG_PORT:-8766}/blog/"
+      else
+        warn "systemd/blog-server.service não encontrado."
+      fi
+      ;;
+
+    macos)
+      local plist_dir="$HOME/Library/LaunchAgents"
+      mkdir -p "$plist_dir"
+      local plist_name="$REPO_OWNER.$AGENT_NAME.blog.plist"
+
+      cat > "$plist_dir/$plist_name" << PLISTEOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>$REPO_OWNER.$AGENT_NAME.blog</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>$blog_dir/.venv/bin/python3</string>
+    <string>$blog_dir/server.py</string>
+  </array>
+  <key>WorkingDirectory</key><string>$blog_dir</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>BLOG_PORT</key><string>${BLOG_PORT:-8766}</string>
+  </dict>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>StandardOutPath</key><string>$INSTALL_DIR/logs/blog-server.log</string>
+  <key>StandardErrorPath</key><string>$INSTALL_DIR/logs/blog-server.log</string>
+</dict>
+</plist>
+PLISTEOF
+
+      if launchctl load "$plist_dir/$plist_name" 2>/dev/null; then
+        success "Blog server ativo via launchd (reinicia automaticamente)"
+        info "URL: http://localhost:${BLOG_PORT:-8766}/blog/"
+      else
+        warn "launchctl load falhou — verifique o plist manualmente"
+      fi
+      ;;
+
+    windows)
+      warn "Windows: inicie manualmente:"
+      echo "    $blog_dir\\.venv\\Scripts\\python.exe $blog_dir\\server.py"
+      ;;
+  esac
+}
+
 activate_heartbeat() {
   header "Ativando ciclo autônomo ($OS)"
 
@@ -1441,6 +1520,7 @@ main() {
   setup_knowledge_base
   setup_secrets
   security_hardening
+  activate_blog_server
   activate_heartbeat
   publish_to_github
   validate_and_first_run

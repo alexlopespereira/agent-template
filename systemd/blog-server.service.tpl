@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart={{ WORK_DIR }}/blog/.venv/bin/python3 {{ WORK_DIR }}/blog/app.py
+ExecStart={{ WORK_DIR }}/blog/.venv/bin/python3 {{ WORK_DIR }}/blog/server.py
 Restart=always
 RestartSec=3
 WorkingDirectory={{ WORK_DIR }}/blog
