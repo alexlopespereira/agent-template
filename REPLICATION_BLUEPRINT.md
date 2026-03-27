@@ -360,7 +360,6 @@ flowchart TD
 
 | Variavel | Servico | Obrigatoria? | Onde obter | Usada por |
 |----------|---------|--------------|------------|-----------|
-| `ANTHROPIC_API_KEY` | Anthropic | Sim | console.anthropic.com | Claude Code (agente host) |
 | `OPENAI_API_KEY` | OpenAI | Sim | platform.openai.com | review-gate, edge-consult, edge-dialogue |
 | `EXA_API_KEY` | Exa.ai | Sim | exa.ai | edge-fontes (busca web) |
 | `XAI_API_KEY` | xAI | Opcional | x.ai | edge-consult (modelo Grok alternativo) |

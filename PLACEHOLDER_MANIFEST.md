@@ -20,7 +20,6 @@
 | `{{ REPO_OWNER }}` | string | yes | — | "GitHub user/org (e.g., johndoe):" |
 | `{{ WORK_DIR }}` | path | calculated | — | computed as the repo's absolute path at install time |
 | `{{ USER_HOME }}` | path | calculated | — | computed as $HOME at install time |
-| `{{ ANTHROPIC_API_KEY }}` | secret | yes | — | "Enter your ANTHROPIC_API_KEY (sk-ant-...):" |
 | `{{ OPENAI_API_KEY }}` | secret | yes | — | "Enter your OPENAI_API_KEY (sk-...):" |
 | `{{ GEMINI_API_KEY }}` | secret | yes | — | "Enter your GEMINI_API_KEY (from aistudio.google.com):" |
 | `{{ EXA_API_KEY }}` | secret | no | "" | "Enter your EXA_API_KEY (leave empty to skip):" |
@@ -60,7 +59,6 @@
 - TOOL_PREFIX (defaults to "edge")
 
 ### Group 3 — APIs and Credentials
-- ANTHROPIC_API_KEY
 - OPENAI_API_KEY
 - GEMINI_API_KEY (for deep research + adversarial validation)
 - EXA_API_KEY (optional)
@@ -93,7 +91,6 @@
 ## Validations
 
 ```
-ANTHROPIC_API_KEY  → must start with "sk-ant-"
 OPENAI_API_KEY     → must start with "sk-"
 GEMINI_API_KEY     → must start with "AIza"
 EXA_API_KEY        → if provided, non-empty string
@@ -145,7 +142,6 @@ Windows → Task Scheduler (New-ScheduledTask via PS1)
 | `REPO_OWNER` | heartbeat.plist.tpl |
 | `BLOG_AUTH_USER` | (runtime only — secrets/keys.env) |
 | `BLOG_AUTH_PASS` | (runtime only — secrets/keys.env) |
-| `ANTHROPIC_API_KEY` | (runtime only — secrets/keys.env) |
 | `OPENAI_API_KEY` | (runtime only — secrets/keys.env) |
 | `GEMINI_API_KEY` | (runtime only — secrets/keys.env) |
 | `EXA_API_KEY` | (runtime only — secrets/keys.env) |

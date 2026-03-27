@@ -375,7 +375,7 @@ if [[ -d "$REPO_ROOT/.git" ]]; then
       cat > "$HOOK" << 'HOOKEOF'
 #!/usr/bin/env bash
 # Pre-commit hook: bloqueia commit de secrets
-PATTERNS='sk-ant-|sk-proj-|ANTHROPIC_API_KEY=.sk-|OPENAI_API_KEY=.sk-|xai-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{36}|github_pat_'
+PATTERNS='sk-ant-|sk-proj-|OPENAI_API_KEY=.sk-|xai-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{36}|github_pat_'
 
 if git diff --cached --diff-filter=ACMR -z --name-only | \
    xargs -0 grep -lE "$PATTERNS" 2>/dev/null | \
