@@ -181,6 +181,60 @@ check_prerequisites() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# SEÇÃO 2.5 — MERGE DE README
+# ─────────────────────────────────────────────────────────────────────────────
+
+merge_readme_section() {
+  local src_readme="$1"
+  local dest_readme="$2"
+
+  local START_MARKER="<!-- AGENT-TEMPLATE-START -->"
+  local END_MARKER="<!-- AGENT-TEMPLATE-END -->"
+
+  # Verificar se o README fonte tem os marcadores
+  if ! grep -qF "$START_MARKER" "$src_readme" 2>/dev/null; then
+    warn "README.md do template não contém marcadores AGENT-TEMPLATE. Pulando merge."
+    return 0
+  fi
+
+  # Extrair seção do fonte (incluindo marcadores)
+  local section
+  section=$(sed -n "/<!-- AGENT-TEMPLATE-START -->/,/<!-- AGENT-TEMPLATE-END -->/p" "$src_readme")
+
+  if [[ -z "$section" ]]; then
+    warn "Não foi possível extrair seção do README fonte. Pulando merge."
+    return 0
+  fi
+
+  if grep -qF "$START_MARKER" "$dest_readme" 2>/dev/null; then
+    # Destino já tem marcadores — substituir seção (idempotente)
+    local tmpfile
+    tmpfile=$(mktemp)
+    local before after
+    before=$(sed "/<!-- AGENT-TEMPLATE-START -->/,\$d" "$dest_readme")
+    after=$(sed "1,/<!-- AGENT-TEMPLATE-END -->/d" "$dest_readme")
+
+    {
+      printf '%s\n' "$before"
+      echo ""
+      printf '%s\n' "$section"
+      echo ""
+      printf '%s\n' "$after"
+    } > "$tmpfile"
+
+    mv "$tmpfile" "$dest_readme"
+    info "Seção Agent Template atualizada no README.md existente."
+  else
+    # Destino não tem marcadores — appendar seção no final
+    {
+      echo ""
+      printf '%s\n' "$section"
+    } >> "$dest_readme"
+    info "Seção Agent Template adicionada ao README.md existente."
+  fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # SEÇÃO 3 — CLONE OU USO LOCAL
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -230,6 +284,7 @@ clone_or_use_local() {
         .claude models.env.example .env.example
         PLACEHOLDER_MANIFEST.md ANALYZE_ARTIFACTS.md REPLICATION_BLUEPRINT.md
         PROMPT_D_PREINSTALL.md autoresearch_config.yaml autoresearch.md
+        README.md
       )
 
       local copied=0 skipped=0
@@ -247,6 +302,15 @@ clone_or_use_local() {
               cp -r "$src" "$INSTALL_DIR/$item"
           fi
           ((copied++))
+        elif [[ "$item" == "README.md" ]]; then
+          # README.md: merge em vez de skip quando já existe
+          if [[ -f "$INSTALL_DIR/$item" ]]; then
+            merge_readme_section "$src" "$INSTALL_DIR/$item"
+            ((copied++))
+          else
+            cp "$src" "$INSTALL_DIR/$item"
+            ((copied++))
+          fi
         else
           # Arquivos: copiar apenas se não existir no destino
           if [[ ! -f "$INSTALL_DIR/$item" ]]; then
