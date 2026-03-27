@@ -57,7 +57,47 @@ your-repo/
 ## Conceitos-Chave
 
 ### Heartbeat
-O agente acorda em um intervalo configurável, avalia contexto (tarefas pendentes, mensagens do usuário, threads de investigação) e despacha a skill apropriada — pesquisa, descoberta, lazer criativo, reflexão, estratégia ou execução.
+
+O heartbeat é o ciclo autônomo do agente. Ele é acionado por um timer (systemd no Linux, launchd no macOS) em intervalo configurável e executa a seguinte sequência:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    CICLO DO HEARTBEAT                        │
+│                                                             │
+│  1. Lock — impede ciclos sobrepostos                        │
+│  2. Secrets — carrega .env do diretório secrets/            │
+│  3. Human Gate — verifica se o humano respondeu ao ciclo    │
+│     anterior; se não, pula este beat                        │
+│  4. Preflight — checagem determinística em bash (~3s,       │
+│     zero tokens): detecta sinais de trabalho pendente       │
+│     (mensagens, threads, erros, insights, sessões)          │
+│  5. Skill Heartbeat — invoca Claude (max 30 turns) que      │
+│     executa as fases abaixo                                 │
+│  6. Human Gate — gera relatório e bloqueia próximo beat     │
+│     até o humano responder (Telegram ou blog chat)          │
+│  7. Cleanup — remove temporários, atualiza RAG              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Fases da skill heartbeat (executadas pelo LLM):**
+
+| Fase | O que faz |
+|------|-----------|
+| **0 — Preflight** | Carrega regras, personalidade, métricas de negócio, hipóteses e memória acumulada |
+| **0.5 — Resolve Blockers** | Tenta resolver bloqueios com ações pré-autorizadas (deploys, config, pacotes). Escala ao humano se exigir conta nova, pagamento ou decisão legal |
+| **0.7 — Gap Analysis** | Compara estado atual contra o playbook de negócios, identifica gaps estratégicos, gera novas hipóteses, usa `edge-deepresearch` para dados externos |
+| **1 — Diagnóstico** | Avalia métricas, identifica hipótese de maior impacto, audita assets existentes (LP, emails, copy) para inconsistências |
+| **2 — Execução** | Escolhe UMA hipótese, define métrica-alvo, executa (pesquisa, criação de conteúdo, análise). Tarefas simples (≤3 arquivos) são feitas direto; complexas são delegadas ao Ralph |
+| **3 — Registro** | Registra resultado em `experiments.log` (JSONL) com timestamp, hipótese, delta métrico, ação (KEEP/REVERT) |
+| **4 — Planejamento** | Define o que fazer no próximo beat e registra em `MEMORY.md` |
+| **5 — Relatório** | Gera resumo estruturado (o que fez, estado atual, aprovações pendentes, próximos passos), salva como `human-gate-summary.json` e envia via Telegram |
+
+**Controles de custo e segurança:**
+- Preflight é bash puro (zero tokens de LLM)
+- Skill usa Claude Sonnet com máximo de 30 turns e limite de $2/ciclo
+- Lock file previne ciclos sobrepostos
+- Human gate garante que o agente nunca roda dois ciclos sem supervisão humana
+- Timeout de 45 minutos no systemd
 
 ### Revisão Adversarial
 O agente nunca avalia seu próprio output. Antes de publicar, submete conclusões a um modelo diferente (GPT) via `edge-consult` para revisão adversarial. Isso cria um loop de checks-and-balances.
