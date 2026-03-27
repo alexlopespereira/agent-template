@@ -45,12 +45,6 @@ log_rotation() {
 declare -A SVC_URL SVC_KEY SVC_TEST SVC_PREFIX SVC_WARN
 
 # --- LLMs ---
-SVC_URL[anthropic]="https://console.anthropic.com/settings/keys"
-SVC_KEY[anthropic]="llm.anthropic.api_key"
-SVC_TEST[anthropic]='curl -s -o /dev/null -w "%{http_code}" -H "x-api-key: KEY" -H "anthropic-version: 2023-06-01" https://api.anthropic.com/v1/messages -d "{\"model\":\"claude-haiku-4-5-20251001\",\"max_tokens\":1,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"'
-SVC_PREFIX[anthropic]="sk-ant-"
-SVC_WARN[anthropic]="Esta e a chave MAIS CRITICA. O agente para de funcionar sem ela."
-
 SVC_URL[openai]="https://platform.openai.com/api-keys"
 SVC_KEY[openai]="llm.openai.api_key"
 SVC_TEST[openai]='curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer KEY" https://api.openai.com/v1/models'
@@ -90,7 +84,7 @@ SVC_URL[slack]="https://api.slack.com/apps (seu app > Incoming Webhooks)"
 SVC_KEY[slack]="communication.slack.webhook_url"
 
 # Lista ordenada de servicos
-SERVICES=(anthropic openai xai google exa serper github cloudflare telegram slack)
+SERVICES=(openai xai google exa serper github cloudflare telegram slack)
 
 # =============================================================================
 # FUNCOES

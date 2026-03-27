@@ -51,7 +51,6 @@ your-repo/
 - **Claude Code**: `npm install -g @anthropic-ai/claude-code`
 - **GitHub CLI**: `gh auth login`
 - **Python 3.10+** com pip e venv
-- **ANTHROPIC_API_KEY** configurada
 - **OPENAI_API_KEY** para revisão adversarial (review-gate, edge-consult)
 
 ## Conceitos-Chave
@@ -94,7 +93,7 @@ O heartbeat é o ciclo autônomo do agente. Ele é acionado por um timer (system
 
 **Controles de custo e segurança:**
 - Preflight é bash puro (zero tokens de LLM)
-- Skill usa Claude Sonnet com máximo de 30 turns e limite de $2/ciclo
+- Skill usa Claude Code CLI (modelo configurável via `--model`) com máximo de 30 turns
 - Lock file previne ciclos sobrepostos
 - Human gate garante que o agente nunca roda dois ciclos sem supervisão humana
 - Timeout de 45 minutos no systemd

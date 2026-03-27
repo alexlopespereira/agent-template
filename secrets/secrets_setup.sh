@@ -94,7 +94,6 @@ cmd_setup() {
     # Injetar variáveis de ambiente em _shared.yaml
     echo
     info "Verificando variáveis de ambiente..."
-    _inject_env "$SHARED" "ANTHROPIC_API_KEY" "anthropic" "api_key"
     _inject_env "$SHARED" "OPENAI_API_KEY"    "openai"    "api_key"
     _inject_env "$SHARED" "XAI_API_KEY"       "xai"       "api_key"
     _inject_env "$SHARED" "EXA_API_KEY"       "exa"       "api_key"

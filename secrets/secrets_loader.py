@@ -23,14 +23,14 @@ Uso pelos agentes:
     # A partir do diretório do experimento
     s = SecretsLoader.from_dir("experiments/negocia_ai")
     account = s.get("ads.meta.ad_account_id")   # lê de experiments/negocia_ai/secrets.yaml
-    key     = s.get("llm.anthropic.api_key")    # fallback para secrets/_shared.yaml
+    key     = s.get("llm.openai.api_key")       # fallback para secrets/_shared.yaml
 
     # Ou passando o caminho absoluto
     s = SecretsLoader.from_dir("/home/user/edge/experiments/negocia_ai")
 
     # Modo shared apenas (sem experimento)
     s = SecretsLoader()
-    key = s.get("llm.anthropic.api_key")
+    key = s.get("llm.openai.api_key")
 
     # Verificar antes de gastar
     s.require_active()
@@ -298,7 +298,7 @@ class SecretsLoader:
     # ── validação ────────────────────────────
 
     def validate(self) -> tuple[bool, list[str]]:
-        required = ["llm.anthropic.api_key", "llm.openai.api_key"]
+        required = ["llm.openai.api_key"]
         if self._exp_dir:
             required += ["experiment.name", "experiment.slug"]
         missing = []

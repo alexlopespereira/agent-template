@@ -449,11 +449,6 @@ collect_answers() {
 
   info "As chaves serão salvas em secrets/keys.env (gitignored)."
   info "Deixe vazio para pular — você pode configurar depois em secrets/keys.env."
-  info "ANTHROPIC_API_KEY não é solicitada — o agente usa a autenticação do Claude Code CLI."
-  echo ""
-
-  ANTHROPIC_API_KEY=""
-
   prompt_secret OPENAI_API_KEY \
     "OPENAI_API_KEY (sk-..., Enter para pular):"
   if [[ -n "$OPENAI_API_KEY" ]]; then
@@ -626,7 +621,6 @@ REPO_NAME="$REPO_NAME"
 REPO_OWNER="$REPO_OWNER"
 SKILL_PREFIX="$SKILL_PREFIX"
 TOOL_PREFIX="$TOOL_PREFIX"
-ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY"
 OPENAI_API_KEY="$OPENAI_API_KEY"
 EXA_API_KEY="$EXA_API_KEY"
 HEARTBEAT_INTERVAL="$HEARTBEAT_INTERVAL"
@@ -697,7 +691,6 @@ placeholders = {
     'USER_HOME':               os.environ.get('USER_HOME', ''),
     'SKILL_PREFIX':            os.environ.get('SKILL_PREFIX', ''),
     'TOOL_PREFIX':             os.environ.get('TOOL_PREFIX', 'edge'),
-    'ANTHROPIC_API_KEY':       os.environ.get('ANTHROPIC_API_KEY', ''),
     'OPENAI_API_KEY':          os.environ.get('OPENAI_API_KEY', ''),
     'EXA_API_KEY':             os.environ.get('EXA_API_KEY', ''),
     'HEARTBEAT_INTERVAL':      os.environ.get('HEARTBEAT_INTERVAL', 'hourly'),
@@ -736,7 +729,7 @@ PYEOF
   export AGENT_COGNITIVE_PROFILE AGENT_DOMAIN LANGUAGE
   export REPO_NAME REPO_OWNER WORK_DIR USER_HOME
   export SKILL_PREFIX TOOL_PREFIX
-  export ANTHROPIC_API_KEY OPENAI_API_KEY EXA_API_KEY
+  export OPENAI_API_KEY EXA_API_KEY
   export HEARTBEAT_INTERVAL HEARTBEAT_SECONDS SYSTEMD_INTERVAL HEARTBEAT_PROMPT
   export KB_PATH KB_TYPE KB_REFRESH
   export USER_TIMEZONE BLOG_PORT BLOG_AUTH_USER BLOG_AUTH_PASS GITHUB_USER
@@ -776,7 +769,6 @@ PYEOF
   cat > "$INSTALL_DIR/secrets/keys.env" << KEYSEOF
 # API keys — gerado pelo instalador em $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 # NÃO commitar este arquivo
-ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY"
 OPENAI_API_KEY="$OPENAI_API_KEY"
 EXA_API_KEY="$EXA_API_KEY"
 BLOG_AUTH_USER="$BLOG_AUTH_USER"
@@ -849,11 +841,8 @@ setup_secrets() {
 
   # ── Grupo A: Credenciais de LLM ────────────────────────────────────────────
   header "Credenciais — LLMs"
-  echo -e "  ${YELLOW}ANTHROPIC_API_KEY não é necessária — o agente usa o login do Claude Code CLI.${RESET}"
+  echo -e "  O agente usa o login do Claude Code CLI — nenhuma API key Anthropic é necessária."
   echo -e "  As demais são opcionais — deixe vazio para pular.\n"
-
-  ANTHROPIC_API_KEY=""
-  export ANTHROPIC_API_KEY
 
   echo ""
   ask "OPENAI_API_KEY (sk-... — deixe vazio para pular):"
@@ -953,7 +942,6 @@ def set_if(d, keys, value):
     obj[keys[-1]] = value
 
 env = os.environ
-set_if(data, ['llm', 'anthropic',  'api_key'],          env.get('ANTHROPIC_API_KEY', ''))
 set_if(data, ['llm', 'openai',     'api_key'],          env.get('OPENAI_API_KEY', ''))
 set_if(data, ['llm', 'xai',        'api_key'],          env.get('XAI_API_KEY', ''))
 set_if(data, ['llm', 'google',     'api_key'],          env.get('GOOGLE_API_KEY', ''))
@@ -1255,7 +1243,7 @@ security_hardening() {
     cat > "$hook" << 'HOOKEOF'
 #!/usr/bin/env bash
 # Pre-commit hook: bloqueia commit acidental de secrets
-PATTERNS='sk-ant-|sk-proj-|ANTHROPIC_API_KEY=.sk-|OPENAI_API_KEY=.sk-|xai-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{36}|github_pat_'
+PATTERNS='sk-ant-|sk-proj-|OPENAI_API_KEY=.sk-|xai-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{36}|github_pat_'
 
 if git diff --cached --diff-filter=ACMR -z --name-only | \
    xargs -0 grep -lE "$PATTERNS" 2>/dev/null | \

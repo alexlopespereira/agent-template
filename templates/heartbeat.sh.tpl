@@ -113,13 +113,11 @@ if [ -f "{{ WORK_DIR }}/tools/heartbeat-preflight.sh" ]; then
   echo "Preflight: $PREFLIGHT" >> "$LOG"
 fi
 
-# Preserve API keys for agent tools (e.g. FastAPI services that call LLMs),
-# then unset ANTHROPIC_API_KEY so Claude Code uses logged-in account auth.
-export AGENT_ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}"
+# Export API keys for agent tools (e.g. edge-consult, edge-deepresearch).
+# Claude Code CLI uses logged-in account auth — no API key needed.
 export AGENT_OPENAI_API_KEY="${OPENAI_API_KEY:-}"
 export AGENT_GOOGLE_API_KEY="${GOOGLE_API_KEY:-}"
 export AGENT_WORKSPACE="$(pwd)"
-unset ANTHROPIC_API_KEY
 if claude -p "/{{ SKILL_PREFIX }}-heartbeat" --model claude-sonnet-4-6 \
   --max-turns 30 \
   --allowedTools "Bash(*),Read(*),Write(*),Edit(*),Glob(*),Grep(*),WebSearch(*),WebFetch(*),Task(*),Skill(*)" \
