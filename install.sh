@@ -778,7 +778,7 @@ KEYSEOF
   success "secrets/keys.env criado (chmod 600)"
 
   # Criar diretórios esperados
-  mkdir -p "$INSTALL_DIR/logs" "$INSTALL_DIR/reports" "$INSTALL_DIR/blog/entries"
+  mkdir -p "$INSTALL_DIR/logs" "$INSTALL_DIR/reports" "$INSTALL_DIR/blog/entries" "$INSTALL_DIR/state/gate-history"
   success "Diretórios criados: logs/, reports/, blog/entries/"
 }
 

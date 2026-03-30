@@ -128,36 +128,23 @@ O próximo beat SÓ executa após feedback humano. Produza um relatório claro e
        'summary': '''<RESUMO DO QUE FEZ>''',
        'current_state': '''<ESTADO ATUAL>''',
        'pending_approvals': [<LISTA DE PENDENCIAS>],
-       'proposed_next': [<LISTA DE PROPOSTAS>]
+       'proposed_next': [<LISTA DE PROPOSTAS>],
+       'blog_slug': '<NOME DO ARQUIVO DO BLOG ENTRY CRIADO, ex: 2026-03-29-heartbeat-002-titulo>'
    }
    with open('state/human-gate-summary.json', 'w') as f:
        json.dump(gate, f, indent=2, ensure_ascii=False)
    "
    ```
 
-3. **Enviar via Telegram** usando notify.sh:
+3. **Postar no blog chat** para registro:
    ```bash
-   {{ WORK_DIR }}/tools/notify.sh "📋 *Beat Report*
-
-   *O que fiz:* <resumo>
-
-   *Estado:* <estado>
-
-   *Pendências:* <lista>
-
-   *Próximo beat:* <propostas>
-
-   Responda para aprovar/ajustar o próximo beat." --level info
-   ```
-
-4. **Postar no blog chat** para registro:
-   ```bash
-   curl -s -X POST http://localhost:{{ BLOG_PORT }}/api/chat \
+   BLOG_PORT=$(grep '^  port:' ~/edge/config/branding.yaml 2>/dev/null | awk '{print $2}' || echo {{ BLOG_PORT }})
+   curl -s -X POST http://localhost:${BLOG_PORT}/api/chat \
      -H "Content-Type: application/json" \
      -d '{"from": "agent", "message": "<resumo formatado>"}'
    ```
 
-**IMPORTANTE:** O heartbeat.sh criará o gate file automaticamente após este passo. O próximo beat só executará quando o operador humano responder via Telegram ou blog chat.
+**IMPORTANTE:** O heartbeat.sh enviará o relatório via Telegram automaticamente após este passo, usando os dados de `human-gate-summary.json`. O próximo beat só executará quando o operador humano responder via Telegram ou blog chat.
 
 ## Domínio
 {{ AGENT_DOMAIN }}

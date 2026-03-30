@@ -10,6 +10,7 @@ RestartSec=3
 WorkingDirectory={{ WORK_DIR }}/blog
 Environment="HOME=%h"
 Environment="BLOG_PORT={{ BLOG_PORT }}"
+Environment="AGENT_NAME={{ AGENT_NAME }}"
 
 [Install]
 WantedBy=default.target
