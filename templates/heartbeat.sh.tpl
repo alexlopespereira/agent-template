@@ -95,6 +95,10 @@ except:
 
     if [ "$HAS_FEEDBACK" = "yes" ]; then
       echo "  Gate: human feedback received — proceeding" >> "$LOG"
+      # Archive gate with feedback before clearing
+      HISTORY_DIR="{{ WORK_DIR }}/state/gate-history"
+      mkdir -p "$HISTORY_DIR"
+      cp "$GATE_FILE" "$HISTORY_DIR/gate-$(date +%Y%m%d-%H%M%S).json"
       mv "$GATE_FILE" "$GATE_LAST"
     else
       echo "  Gate: waiting for human feedback — skipping beat" >> "$LOG"
@@ -102,7 +106,10 @@ except:
       exit 0
     fi
   else
-    # Gate exists but not in waiting state — clear it
+    # Gate exists but not in waiting state — archive and clear it
+    HISTORY_DIR="{{ WORK_DIR }}/state/gate-history"
+    mkdir -p "$HISTORY_DIR"
+    cp "$GATE_FILE" "$HISTORY_DIR/gate-$(date +%Y%m%d-%H%M%S).json"
     mv "$GATE_FILE" "$GATE_LAST"
   fi
 fi
@@ -124,7 +131,14 @@ if claude -p "/{{ SKILL_PREFIX }}-heartbeat" --model claude-sonnet-4-6 \
   >> "$LOG" 2>&1; then
   echo "--- done $(date -Iseconds) ---" >> "$LOG"
 else
-  echo "--- failed $(date -Iseconds) (exit code $?) ---" >> "$LOG"
+  BEAT_EXIT=$?
+  echo "--- failed $(date -Iseconds) (exit code $BEAT_EXIT) ---" >> "$LOG"
+  # Notify operator of beat failure
+  NOTIFY_SCRIPT="{{ WORK_DIR }}/../tools/notify.sh"
+  if [ -f "$NOTIFY_SCRIPT" ]; then
+    bash "$NOTIFY_SCRIPT" "Beat failed (exit code $BEAT_EXIT). Check log for details." \
+      --level error --experiment "{{ AGENT_NAME }}" >> "$LOG" 2>&1 || true
+  fi
 fi
 
 # --- Create human gate after beat ---
@@ -149,6 +163,56 @@ with open('$GATE_FILE', 'w') as f:
 " 2>/dev/null
 fi
 echo "  Gate: created — waiting for human feedback" >> "$LOG"
+
+# --- Send beat report via Telegram ---
+REPORT_SCRIPT="{{ WORK_DIR }}/../tools/send-beat-report.sh"
+if [ -f "$REPORT_SCRIPT" ] && [ -f "$GATE_FILE" ]; then
+  bash "$REPORT_SCRIPT" "$GATE_FILE" --experiment "{{ AGENT_NAME }}" >> "$LOG" 2>&1 || true
+fi
+
+# --- Fallback: ensure blog entry exists ---
+BLOG_ENTRIES_DIR="{{ WORK_DIR }}/blog/entries"
+TODAY=$(date +%Y-%m-%d)
+if [ -d "$BLOG_ENTRIES_DIR" ] && ! ls "$BLOG_ENTRIES_DIR"/${TODAY}-heartbeat-*.md 1>/dev/null 2>&1; then
+  if [ -f "$GATE_FILE" ]; then
+    python3 -c "
+import json, os
+gate = json.load(open('$GATE_FILE'))
+today = '$TODAY'
+slug = f'{today}-heartbeat-auto'
+pending = gate.get('pending_approvals', [])
+proposed = gate.get('proposed_next', [])
+content = f'''---
+title: \"Heartbeat auto-report\"
+date: \"{today}\"
+type: heartbeat
+status: done
+tags: [heartbeat, auto-generated]
+---
+
+## Resumo
+
+{gate.get('summary', 'No summary available')}
+
+## Estado Atual
+
+{gate.get('current_state', 'N/A')}
+
+## Pendencias
+
+{chr(10).join('- ' + p for p in pending) if pending else 'Nenhuma'}
+
+## Proximos Passos
+
+{chr(10).join('- ' + p for p in proposed) if proposed else 'A definir'}
+'''
+os.makedirs('$BLOG_ENTRIES_DIR', exist_ok=True)
+with open(f'$BLOG_ENTRIES_DIR/{slug}.md', 'w') as f:
+    f.write(content)
+print(f'  Blog fallback: created {slug}.md')
+" >> "$LOG" 2>&1 || true
+  fi
+fi
 
 # Cleanup guardrail session state
 rm -f /tmp/guardrail-session-*.json /tmp/guardrail-approval-* 2>/dev/null || true
